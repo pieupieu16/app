@@ -150,14 +150,11 @@ if menu == "Dashboard Tổng quan":
     # CSS tùy chỉnh
     st.markdown("""
     <style>
-    .main {background-color: #f8f9fa;}
-    .stMetric {background-color: #ffffff; border: 1px solid #e6e6e6; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);}
+    /* ... (CSS cho .main và .stMetric) ... */
     
-    /* 🎨 Sửa màu tại đây */
-    .stMetricLabel {color: #6c757d !important;} /* Đổi thành Xám đậm */
-    .stMetricValue {color: #007bff !important;} /* Đổi thành Xanh lam đậm */
-    
-    </style>
+    .stMetricLabel {color: #6c757d !important;} 
+    /* ⬇️ SỬA MÃ MÀU TẠI DÒNG NÀY ⬇️ */
+    .stMetricValue {color: #90CAF9 !important;} /* Thay #007bff bằng màu bạn muốn */
     """, unsafe_allow_html=True)
     
     c1, c2 = st.columns(2)

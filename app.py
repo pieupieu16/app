@@ -152,7 +152,7 @@ if menu == "Dashboard Tổng quan":
     <style>
     /* ... (CSS cho .main và .stMetric) ... */
     
-    .stMetricLabel {color: #6c757d !important;} 
+    .stMetricLabel {color: #66bb6a !important;} 
     /* ⬇️ SỬA MÃ MÀU TẠI DÒNG NÀY ⬇️ */
     .stMetricValue {color: #90CAF9 !important;} /* Thay #007bff bằng màu bạn muốn */
     """, unsafe_allow_html=True)

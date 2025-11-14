@@ -150,18 +150,29 @@ if menu == "Dashboard Tổng quan":
     # CSS tùy chỉnh
     st.markdown("""
     <style>
-    /* Nếu bạn muốn nền Dashboard là ĐEN (Dark Theme), KHÔNG CẦN thay đổi .main
-    Nếu bạn muốn nền Dashboard là SÁNG (Light Theme), hãy giữ .main {background-color: #f8f9fa;}
-    */
+    /* Bắt buộc màu nền trắng cho ô Metric */
+    .stMetric {
+        background-color: #ffffff !important; 
+        border: 1px solid #e6e6e6; 
+        padding: 15px; 
+        border-radius: 10px; 
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.05);
+    }
     
-    /* 🔴 Đảm bảo màu nền của ô Metric là TRẮNG tuyệt đối */
-    .stMetric {background-color: #ffffff !important; border: 1px solid #e6e6e6; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);}
+    /* Ghi đè màu chữ cho Tiêu đề (Label) */
+    .stMetricLabel {
+        color: #6c757d !important; /* Xám đậm */
+    } 
     
-    /* 🔴 Đảm bảo màu Tiêu đề là MÀU ĐEN (tương phản) */
-    .stMetricLabel {color: #000000 !important;} 
+    /* Ghi đè màu chữ cho Giá trị (Value) */
+    .stMetricValue {
+        color: #000000 !important; /* Đen tuyền */
+    }
     
-    /* 🔴 Đảm bảo màu Giá trị là MÀU XANH/ĐEN (tương phản) */
-    .stMetricValue {color: #007bff !important;} 
+    /* 🟢 THÊM QUY TẮC MẠNH HƠN CHO CÁC PHẦN TỬ CHUNG 🟢 */
+    .stMetric div, .stMetric p {
+        color: #000000 !important;
+    }
     
     </style>
     """, unsafe_allow_html=True)

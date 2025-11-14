@@ -147,7 +147,18 @@ if menu == "Dashboard Tổng quan":
         top_quan = "N/A"
     col4.metric("Khu vực sôi động nhất", top_quan)
 
-    st.markdown("---")
+    # CSS tùy chỉnh
+    st.markdown("""
+    <style>
+    .main {background-color: #f8f9fa;}
+    .stMetric {background-color: #ffffff; border: 1px solid #e6e6e6; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);}
+    
+    /* 🎨 Sửa màu tại đây */
+    .stMetricLabel {color: #6c757d !important;} /* Đổi thành Xám đậm */
+    .stMetricValue {color: #007bff !important;} /* Đổi thành Xanh lam đậm */
+    
+    </style>
+    """, unsafe_allow_html=True)
     
     c1, c2 = st.columns(2)
     with c1:

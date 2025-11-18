@@ -152,6 +152,21 @@ if menu == "Trang chủ & Định giá":
     
     st.title("🤖 Công cụ Định giá Bất động sản Hà Nội")
     st.markdown("Nhập các thông số của bất động sản để dự đoán giá trị (Tỷ VNĐ).")
+    @st.cache_resource # Dùng cache_resource cho model
+    def load_model(model_path="model.pkl"):
+        try:
+            model = joblib.load(model_path)
+            return model
+        except FileNotFoundError:
+            st.error(f"Lỗi: Không tìm thấy file model '{model_path}'.")
+            st.error("Vui lòng đảm bảo file model (ví dụ: model.pkl) nằm cùng thư mục với app.py")
+            return None
+        except Exception as e:
+            st.error(f"Lỗi khi tải model: {e}")
+            return None
+
+    # Tải model khi khởi động
+    model = load_model()
 
     # Kiểm tra xem model đã được tải chưa
     if model is None:

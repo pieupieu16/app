@@ -4,6 +4,7 @@ import plotly.express as px
 import numpy as np
 import streamlit.components.v1 as components
 import io
+import joblib
 # 1. THÊM THƯ VIỆN MENU
 from streamlit_option_menu import option_menu 
 
@@ -37,35 +38,57 @@ st.markdown("""
 def load_data_v2():
     file_path = 'dự tính giá nhà - Trang tính1 (2).csv'
     try:
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(file_path) 
+        
+        # 1. Làm sạch tên cột
         df.columns = df.columns.str.strip()
+        
+        # 2. Đổi tên cột (Mapping)
         rename_mapping = {
-            'Giá(ty)': 'Giá (Tỷ)', 'Diện Tích(m2)': 'Diện tích (m2)',
-            'numberbedroom': 'Phòng ngủ', 'numberbathroom': 'Phòng tắm',
-            'Loại Hình(căn hộ ,nhà,villa)': 'Loại nhà',
+            'Giá(ty)': 'Giá (Tỷ)',
+            'Diện Tích(m2)': 'Diện tích (m2)',
+            'numberbedroom': 'Phòng ngủ',
+            'numberbathroom': 'Phòng tắm',
+            'Loại Hình(căn hộ ,nhà,villa)': 'Loại nhà', # <-- Cột này sẽ được lọc
             'KHoảng cách đến trung tâm (Km)': 'Khoảng cách trung tâm (Km)',
-            'sổ đỏ': 'Sổ đỏ', 'Hướng Nhà': 'Hướng nhà'
+            'sổ đỏ': 'Sổ đỏ',
+            'Hướng Nhà': 'Hướng nhà'
         }
         df.rename(columns=rename_mapping, inplace=True)
-        
+
+        # 3. Ép kiểu dữ liệu số
         cols_to_numeric = ['Giá (Tỷ)', 'Diện tích (m2)', 'Phòng ngủ', 'Khoảng cách trung tâm (Km)']
         for col in cols_to_numeric:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
         
+        # Xóa dòng không có giá hoặc diện tích
         df.dropna(subset=['Giá (Tỷ)', 'Diện tích (m2)'], inplace=True)
-        
-        # Làm sạch giá (Giữ nguyên logic của bạn)
+
+        # ... (Phần code làm sạch cột 'Giá (Tỷ)' và 'Diện tích (m2)' của bạn)
         df['Giá (Tỷ)'] = df['Giá (Tỷ)'].astype(str).str.strip()
         df['Giá (Tỷ)'] = df['Giá (Tỷ)'].str.replace('tỷ', '', regex=False).str.replace('ty', '', regex=False).str.replace(' ', '', regex=False)
         df['Giá (Tỷ)'] = df['Giá (Tỷ)'].str.replace(r'[^\d.]', '', regex=True) 
         df['Giá (Tỷ)'] = pd.to_numeric(df['Giá (Tỷ)'], errors='coerce')
         df['Diện tích (m2)'] = pd.to_numeric(df['Diện tích (m2)'], errors='coerce')
+        
+        # --- 🟢 THÊM CHỨC NĂNG LỌC 'LOẠI NHÀ' (MỚI) ---
+        if 'Loại nhà' in df.columns:
+            # 1. Chuẩn hóa (xóa khoảng trắng thừa và chuyển thành chữ thường cho chắc)
+            df['Loại nhà'] = df['Loại nhà'].astype(str).str.strip().str.lower()
+            
+            # 2. Danh sách các giá trị được phép
+            allowed_loai_nha = ['căn hộ', 'nhà', 'villa']
+            
+            # 3. Lọc DataFrame (chỉ giữ lại các hàng có giá trị trong danh sách)
+            df = df[df['Loại nhà'].isin(allowed_loai_nha)].copy()
+        # --- KẾT THÚC PHẦN MỚI ---
 
-        # Gộp cột quận (Giữ nguyên logic của bạn)
+        # 4. GỘP CỘT QUẬN (Giữ nguyên logic của bạn)
         quan_columns = ['Ba Đình', 'Cầu Giấy', 'Đống Đa', 'Hai Bà Trưng', 'Thanh Xuân', 
                         'Hoàng Mai', 'Long Biên', 'Hà Đông', 'Tây Hồ', 'Nam Từ Liêm', 
                         'Bắc Từ Liêm', 'Thanh Trì']
+        
         valid_quan_cols = [q for q in quan_columns if q in df.columns]
 
         if not valid_quan_cols:
@@ -78,7 +101,7 @@ def load_data_v2():
                 return "Khác"
             df['Quận'] = df.apply(get_quan, axis=1)
 
-        # Tổng tiện ích (Giữ nguyên logic của bạn)
+        # 5. Tổng tiện ích (Giữ nguyên logic của bạn)
         tien_ich = ['sercurity(1 or 0)', 'Giải trí(1 or 0)', 'Giao thông(1 or 0)', 
                     'Bệnh viện(1 or 0)', 'Market(1 or 0)', 'Giáo dục(1 or 0)']
         valid_tien_ich = [t for t in tien_ich if t in df.columns]
@@ -90,7 +113,8 @@ def load_data_v2():
         return df
     
     except Exception as e:
-        st.error(f"Lỗi khi đọc file: {e}")
+        # Sửa lỗi này để hiển thị rõ hơn trên Streamlit
+        st.error(f"Lỗi khi đọc file CSV: {e}")
         return pd.DataFrame()
 
 # --- KHỞI TẠO DỮ LIỆU ---
@@ -121,67 +145,147 @@ menu = option_menu(
     }
 )
 
-# --- MODULE 1: TRANG CHỦ & ĐỊNH GIÁ (Thiết kế lại) ---
+# ===================================================================
+# --- MODULE 1: TRANG CHỦ & ĐỊNH GIÁ (ĐÃ THIẾT KẾ LẠI HOÀN TOÀN) ---
+# ===================================================================
 if menu == "Trang chủ & Định giá":
     
-    # A. PHẦN TIÊU ĐỀ
-    st.title("Xác định giá trị bất động sản nhanh và chính xác nhất")
-    st.markdown("Sử dụng dữ liệu lớn để phân tích và dự đoán giá nhà tại Hà Nội.")
+    st.title("🤖 Công cụ Định giá Bất động sản Hà Nội")
+    st.markdown("Nhập các thông số của bất động sản để dự đoán giá trị (Tỷ VNĐ).")
 
-    # B. PHẦN CÔNG CỤ ĐỊNH GIÁ (Mô phỏng ảnh b62a62)
-    # Dùng st.tabs để tạo các tab "Căn hộ chung cư", "Officetel"...
-    tab_chungcu, tab_officetel, tab_bietthu = st.tabs(["Căn hộ chung cư", "Officetel", "Biệt thự/Shophouse"])
+    # Kiểm tra xem model đã được tải chưa
+    if model is None:
+        st.warning("Mô hình dự đoán hiện chưa sẵn sàng. Vui lòng kiểm tra file model.")
+        st.stop() # Dừng chạy Module này nếu không có model
 
-    with tab_chungcu:
-        st.subheader("Định giá Căn hộ chung cư")
+    # --- DANH SÁCH CÁC INPUT (Từ yêu cầu của bạn) ---
+    # Đây là các danh sách để tạo input (giao diện)
+    # Rất quan trọng: Tên cột one-hot (quan_list) phải khớp 100% với tên feature trong model
+    quan_list = ['Ba Đình', 'Cầu Giấy', 'Đống Đa', 'Hai Bà Trưng', 'Thanh Xuân', 
+                 'Hoàng Mai', 'Long Biên', 'Hà Đông', 'Tây Hồ', 'Nam Từ Liêm', 
+                 'Bắc Từ Liêm', 'Thanh Trì']
+    
+    loai_hinh_list = ['căn hộ', 'nhà', 'villa'] # (Từ input của bạn)
+    
+    # Giả định các hướng nhà (Bạn có thể cần sửa lại)
+    huong_nha_list = ['KXĐ', 'Đông', 'Tây', 'Nam', 'Bắc', 'Đông Nam', 'Tây Nam', 'Đông Bắc', 'Tây Bắc'] 
+
+    # --- B. FORM NHẬP LIỆU ---
+    # st.form giúp nhóm tất cả input và chỉ gửi khi bấm nút
+    with st.form(key="prediction_form"):
         
-        # Dùng st.columns để tạo layout lưới cho bộ lọc
+        st.subheader("Thông tin cơ bản")
         col1, col2, col3 = st.columns(3)
-        with col1:
-            tinh_thanh = st.selectbox("Tỉnh/Thành phố", ["Hà Nội", "TP. Hồ Chí Minh"], key="t1")
-            quan_huyen = st.selectbox("Quận/Huyện", df['Quận'].unique(), key="q1")
-        with col2:
-            du_an = st.selectbox("Dự án", ["Vinhomes Smart City", "Vinhomes Ocean Park", "Khác"], key="d1")
-            toa_nha = st.selectbox("Tòa nhà", ["S1.01", "S1.02", "G1", "G2"], key="tna1")
-        with col3:
-            tang = st.number_input("Tầng", min_value=1, max_value=50, value=10, key="ta1")
-            ma_can = st.text_input("Mã căn (Nếu có)", key="mc1")
         
-        if st.button("Định giá ngay", type="primary", key="b1"):
-            # (Thêm logic định giá của bạn ở đây)
-            st.success("Đang xử lý định giá...")
+        with col1:
+            dien_tich = st.number_input("Diện Tích (m2)", min_value=10.0, value=50.0, step=1.0)
+            phong_ngu = st.number_input("Số phòng ngủ (numberbedroom)", min_value=0, value=2, step=1)
+            phong_tam = st.number_input("Số phòng tắm (numberbathroom)", min_value=0, value=2, step=1)
+        
+        with col2:
+            so_tang = st.number_input("Số tầng", min_value=1, value=1, step=1)
+            mat_tien = st.number_input("Mặt tiền (m)", min_value=0.0, value=5.0, step=0.1)
+            khoang_cach_tt = st.number_input("Khoảng cách đến trung tâm (Km)", min_value=0.0, value=5.0, step=0.1)
 
-    with tab_officetel:
-        st.subheader("Định giá Officetel")
-        # (Thêm các bộ lọc tương tự cho Officetel...)
-        st.write("Các bộ lọc cho Officetel...")
+        with col3:
+            # Giao diện nhập Quận (UI)
+            # Chúng ta dùng 1 selectbox cho dễ dùng, sau đó sẽ tự one-hot
+            quan_input = st.selectbox("Chọn Quận", quan_list)
+            loai_hinh_input = st.selectbox("Loại Hình", loai_hinh_list)
+            huong_nha_input = st.selectbox("Hướng Nhà", huong_nha_list)
 
-    with tab_bietthu:
-        st.subheader("Định giá Biệt thự / Shophouse")
-        # (Thêm các bộ lọc tương tự...)
-        st.write("Các bộ lọc cho Biệt thự...")
+        st.subheader("Thông tin pháp lý & tiện ích (1=Có, 0=Không)")
+        col4, col5, col6 = st.columns(3)
 
-    st.divider() # Ngăn cách
+        # Dùng st.radio cho các biến nhị phân (1/0)
+        with col4:
+            noi_that = st.radio("Nội thất", [1, 0], format_func=lambda x: "Có" if x == 1 else "Không", horizontal=True)
+            so_do = st.radio("Sổ đỏ", [1, 0], format_func=lambda x: "Có" if x == 1 else "Không", horizontal=True)
+            security = st.radio("An ninh (sercurity)", [1, 0], format_func=lambda x: "Có" if x == 1 else "Không", horizontal=True)
+        
+        with col5:
+            giai_tri = st.radio("Giải trí", [1, 0], format_func=lambda x: "Có" if x == 1 else "Không", horizontal=True)
+            giao_thong = st.radio("Giao thông", [1, 0], format_func=lambda x: "Có" if x == 1 else "Không", horizontal=True)
+            benh_vien = st.radio("Bệnh viện", [1, 0], format_func=lambda x: "Có" if x == 1 else "Không", horizontal=True)
+        
+        with col6:
+            market = st.radio("Chợ/Siêu thị (Market)", [1, 0], format_func=lambda x: "Có" if x == 1 else "Không", horizontal=True)
+            giao_duc = st.radio("Giáo dục", [1, 0], format_func=lambda x: "Có" if x == 1 else "Không", horizontal=True)
 
-    # C. PHẦN CHỈ SỐ (Metrics) - (Giống ảnh b62a62)
-    st.subheader("Thống kê thị trường")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Tổng số tin đăng", f"{len(df):,}")
-    col2.metric("Giá trung bình (Toàn thị trường)", f"{df['Giá (Tỷ)'].mean():.2f} Tỷ")
-    col3.metric("Diện tích trung bình", f"{df['Diện tích (m2)'].mean():.1f} m²")
+        # Nút dự đoán
+        submit_button = st.form_submit_button(label="DỰ ĐOÁN GIÁ", use_container_width=True)
 
-    # D. CÁC BIỂU ĐỒ (Lấy từ Dashboard cũ của bạn)
-    st.subheader("Tổng quan thị trường")
-    c1, c2 = st.columns(2)
-    with c1:
-        st.markdown("##### Phân bổ Giá theo Diện tích")
-        fig_map = px.scatter(df, x="Diện tích (m2)", y="Giá (Tỷ)", color="Quận", size="Giá (Tỷ)")
-        st.plotly_chart(fig_map, use_container_width=True)
-    with c2:
-        st.markdown("##### Tỷ lệ Loại hình nhà")
-        df['Loại nhà'] = df['Loại nhà'].astype(str).str.strip()
-        fig_pie = px.pie(df, names='Loại nhà', title='Cơ cấu nguồn cung', hole=0.4)
-        st.plotly_chart(fig_pie, use_container_width=True)
+    # --- C. XỬ LÝ VÀ DỰ ĐOÁN (Sau khi bấm nút) ---
+    if submit_button:
+        try:
+            # 1. Tạo một dictionary để chứa tất cả dữ liệu
+            input_data = {}
+
+            # 2. Thêm các feature số và nhị phân (đã nhập)
+            input_data['Diện Tích(m2)'] = dien_tich
+            input_data['numberbedroom'] = phong_ngu
+            input_data['numberbathroom'] = phong_tam
+            input_data['Số tầng'] = so_tang
+            input_data['Nội thất (1/0)'] = noi_that
+            input_data['Mặt tiền'] = mat_tien
+            input_data['sổ đỏ'] = so_do
+            input_data['KHoảng cách đến trung tâm (Km)'] = khoang_cach_tt
+            input_data['sercurity(1 or 0)'] = security
+            input_data['Giải trí(1 or 0)'] = giai_tri
+            input_data['Giao thông(1 or 0)'] = giao_thong
+            input_data['Bệnh viện(1 or 0)'] = benh_vien
+            input_data['Market(1 or 0)'] = market
+            input_data['Giáo dục(1 or 0)'] = giao_duc
+            
+            # 3. Thêm các feature categorical (Giả định model của bạn chấp nhận string)
+            # QUAN TRỌNG: Nếu model của bạn cần one-hot cho 'Loại Hình' và 'Hướng Nhà', 
+            # bạn cần xử lý tương tự như 'Quận' bên dưới.
+            input_data['Loại Hình(căn hộ ,nhà,villa)'] = loai_hinh_input
+            input_data['Hướng Nhà'] = huong_nha_input
+
+            # 4. Xử lý One-Hot Encoding cho Quận
+            # Tạo 12 cột (Ba Đình, Cầu Giấy,...)
+            for q in quan_list:
+                input_data[q] = 1 if q == quan_input else 0
+
+            # 5. Xác định thứ tự cột (CỰC KỲ QUAN TRỌNG)
+            # Thứ tự này phải khớp 100% với thứ tự cột khi bạn huấn luyện model.
+            # Hãy kiểm tra lại file notebook training của bạn để lấy thứ tự chính xác.
+            
+            # Dưới đây là thứ tự dựa trên danh sách bạn cung cấp:
+            final_feature_columns = [
+                'Diện Tích(m2)', 'numberbedroom', 'numberbathroom', 'Số tầng', 
+                'Nội thất (1/0)', 'Mặt tiền', 'Loại Hình(căn hộ ,nhà,villa)', 'sổ đỏ', 
+                'KHoảng cách đến trung tâm (Km)', 'sercurity(1 or 0)', 'Hướng Nhà',
+                'Ba Đình', 'Cầu Giấy', 'Đống Đa', 'Hai Bà Trưng', 'Thanh Xuân', 
+                'Hoàng Mai', 'Long Biên', 'Hà Đông', 'Tây Hồ', 'Nam Từ Liêm', 
+                'Bắc Từ Liêm', 'Thanh Trì', 
+                'Giải trí(1 or 0)', 'Giao thông(1 or 0)', 
+                'Bệnh viện(1 or 0)', 'Market(1 or 0)', 'Giáo dục(1 or 0)'
+            ]
+
+            # 6. Tạo DataFrame 1 dòng
+            # Đảm bảo dữ liệu được sắp xếp đúng thứ tự cột
+            input_df = pd.DataFrame([input_data], columns=final_feature_columns)
+
+            # 7. Dự đoán
+            with st.spinner("Đang tính toán..."):
+                prediction = model.predict(input_df)
+                predicted_price = prediction[0] # Lấy kết quả dự đoán
+
+            # 8. Hiển thị kết quả
+            st.success(f"Dự đoán thành công!")
+            st.metric(label="Giá trị Bất động sản (Ước tính)", 
+                      value=f"{predicted_price:,.2f} Tỷ VNĐ")
+            
+            # (Tùy chọn) Hiển thị dữ liệu đã gửi cho model để debug
+            with st.expander("Xem dữ liệu đầu vào đã xử lý"):
+                st.dataframe(input_df)
+
+        except Exception as e:
+            st.error(f"Đã xảy ra lỗi trong quá trình dự đoán:")
+            st.error(e)
+            st.error("Gợi ý: Hãy kiểm tra lại danh sách 'final_feature_columns' trong code xem đã khớp 100% với model chưa.")
 
 
 # --- MODULE 2: PHÂN TÍCH DỮ LIỆU (Ghép 2 module cũ) ---

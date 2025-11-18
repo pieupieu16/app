@@ -4,3 +4,4 @@ plotly
 numpy
 statsmodels
 streamlit-option-menu
+joblib

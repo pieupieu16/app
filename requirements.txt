@@ -1,7 +1,6 @@
 streamlit
 pandas
 plotly
-numpy
-statsmodels
-streamlit-option-menu
+scikit-learn
 joblib
+streamlit-option-menu

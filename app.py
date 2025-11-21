@@ -4,6 +4,7 @@ import plotly.express as px
 import joblib
 import streamlit.components.v1 as components
 from streamlit_option_menu import option_menu
+from datetime import datetime
 
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
@@ -13,7 +14,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# CSS tùy chỉnh giao diện cho đẹp hơn
 st.markdown("""
     <style>
     .main {background-color: #f8f9fa;}
@@ -24,18 +24,15 @@ st.markdown("""
 
 # --- 2. HÀM XỬ LÝ DỮ LIỆU (CORE) ---
 @st.cache_data
-def load_data(file_path='augmented_housing_data.csv'):
+def load_data(file_path='processed_housing_data.zip'):
     try:
         df = pd.read_csv(file_path)
         
-        # 1. Xử lý tên cột (xóa khoảng trắng thừa)
+        # 1. Xử lý tên cột
         df.columns = df.columns.str.replace(r'\s+', ' ', regex=True).str.strip()
-        
-        # 2. XÓA CỘT TRÙNG (Quan trọng để sửa lỗi "Ambiguous")
         df = df.loc[:, ~df.columns.duplicated()]
 
-        # 3. Tái tạo cột phân loại từ One-Hot Encoding (để hiển thị và vẽ biểu đồ)
-        # Hàm nội bộ để gom nhóm One-Hot
+        # 2. Hàm tái tạo cột phân loại từ One-Hot Encoding
         def reverse_ohe(row, prefix):
             cols = [c for c in df.columns if c.startswith(prefix)]
             for c in cols:
@@ -43,330 +40,329 @@ def load_data(file_path='augmented_housing_data.csv'):
                     return c.replace(prefix, '')
             return 'Khác'
 
-        # Tạo cột 'Quận' nếu chưa có
+        # 3. Tạo cột phân loại để hiển thị (Visual)
         if 'Quận' not in df.columns:
-            df['Quận'] = df.apply(lambda x: reverse_ohe(x, 'Dist_'), axis=1)
+            # Prefix mới là 'Quận_' (Ví dụ: Quận_Quận Ba Đình)
+            df['Quận'] = df.apply(lambda x: reverse_ohe(x, 'Quận_'), axis=1)
         
-        # Tạo cột 'Loại nhà' nếu chưa có
         if 'Loại nhà' not in df.columns:
-            df['Loại nhà'] = df.apply(lambda x: reverse_ohe(x, 'Type_'), axis=1)
-            df['Loại nhà'] = df['Loại nhà'].str.lower()
+            # Prefix mới là 'Loại hình nhà ở_'
+            df['Loại nhà'] = df.apply(lambda x: reverse_ohe(x, 'Loại hình nhà ở_'), axis=1)
 
+        # 4. Đảm bảo có cột 'Giá nhà' và 'Diện tích' cho biểu đồ
+        # Nếu dữ liệu đã dùng tên tiếng Việt thì không cần rename, nhưng check cho chắc
         return df
     except Exception as e:
         st.error(f"Lỗi tải dữ liệu: {e}")
         return pd.DataFrame()
 
-# --- 3. QUẢN LÝ STATE (Lưu trạng thái phiên làm việc) ---
+# --- 3. QUẢN LÝ STATE ---
 if 'df' not in st.session_state:
     st.session_state.df = load_data()
 
-# Biến tắt dùng chung
 df = st.session_state.df
 
-# --- 4. MENU ĐIỀU HƯỚNG (DẠNG NGANG) ---
-# Lưu ý: Không đặt trong 'with st.sidebar:' nữa
-
-# (Tùy chọn) Hiển thị Logo/Tiêu đề phía trên Menu
+# --- 4. MENU ĐIỀU HƯỚNG ---
 col_logo, col_text = st.columns([1, 5])
-with col_logo:
-    st.image("Gemini_Generated_Image_zgk17rzgk17rzgk1.png", width=60)
 with col_text:
     st.title("Hệ thống Định giá BĐS Hà Nội")
 
-# Tạo Menu ngang
 selected = option_menu(
-    menu_title=None,  # Để None cho menu ngang gọn hơn
+    menu_title=None,
     options=["Trang chủ & Tableau", "Quản lý Dữ liệu (CRUD)", "Phân tích Trực quan", "Dự báo Giá nhà"],
     icons=["house", "table", "bar-chart-line", "magic"],
-    menu_icon="cast",
     default_index=0,
-    orientation="horizontal",  # <--- QUAN TRỌNG: Chuyển thành hàng ngang
+    orientation="horizontal",
     styles={
         "container": {"padding": "0!important", "background-color": "#a13d3d"},
         "icon": {"color": "orange", "font-size": "18px"}, 
         "nav-link": {"font-size": "15px", "text-align": "left", "margin":"0px", "--hover-color": "#eee"},
-        "nav-link-selected": {"background-color": "#02ab21"}, # Màu xanh trùng với nút dự báo
+        "nav-link-selected": {"background-color": "#02ab21"},
     }
-    
 )
+
+# Xác định tên cột dữ liệu chính (theo features mới)
+COL_PRICE = 'Giá nhà'
+COL_AREA = 'Diện tích'
+COL_DISTRICT = 'Quận'
+COL_TYPE = 'Loại nhà'
+
 # =========================================================
 # MODULE 1: TRANG CHỦ & TABLEAU
 # =========================================================
 if selected == "Trang chủ & Tableau":
-    st.title(" Dashboard Tổng quan & Tableau")
-    st.markdown("Kết nối dữ liệu trực quan từ công cụ Tableau Public.")
-    # CSS tùy chỉnh: Nền đen, Chữ xanh lá (Green Matrix Style)
+    st.title(" Dashboard Tổng quan")
+    
+    # CSS Custom
     st.markdown("""
         <style>
-        /* Áp dụng cho toàn bộ hộp Metric */
-        [data-testid="stMetric"] {
-            background-color: #000000 !important; /* Nền đen */
-            border: 1px solid #00ff00; /* Viền xanh lá neon */
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0px 0px 10px rgba(0, 255, 0, 0.2); /* Phát sáng nhẹ */
-        }
-        
-        /* Màu chữ cho Label (Tiêu đề nhỏ phía trên) */
-        [data-testid="stMetricLabel"] p {
-            color: #00ff00 !important; /* Xanh lá */
-            font-weight: bold;
-        }
-        
-        /* Màu chữ cho Value (Giá trị số to) */
-        [data-testid="stMetricValue"] div {
-            color: #00ff00 !important; /* Xanh lá */
-            text-shadow: 0 0 5px #00ff00; /* Hiệu ứng phát sáng chữ */
-        }
+        [data-testid="stMetric"] { background-color: #000000 !important; border: 1px solid #00ff00; }
+        [data-testid="stMetricLabel"] p { color: #00ff00 !important; font-weight: bold; }
+        [data-testid="stMetricValue"] div { color: #00ff00 !important; }
         </style>
         """, unsafe_allow_html=True)
-    # Dashboard số liệu nhanh (Metric)
-    # Dashboard số liệu nhanh (Metric)
+
     c1, c2, c3, c4 = st.columns(4)
     
-    if not df.empty:
-        # 1. Số nhà đang bán
+    if not df.empty and COL_PRICE in df.columns:
         num_houses = len(df)
+        avg_price = df[COL_PRICE].mean()
+        max_price = df[COL_PRICE].max()
         
-        # 2. Giá trung bình
-        avg_price = df['Price_Billion'].mean()
-        
-        # 3. Khu vực có giá/m2 rẻ nhất (Logic phức tạp hơn xíu)
-        # Tạo cột đơn giá tạm thời: Giá / Diện tích
-        # Lưu ý: Tránh chia cho 0 bằng cách lọc area > 0
-        valid_area = df[df['Area_m2'] > 0].copy()
-        valid_area['Price_per_m2'] = valid_area['Price_Billion'] / valid_area['Area_m2']
-        
-        # Nhóm theo Quận và tính trung bình đơn giá, sau đó lấy Quận có giá thấp nhất
-        if not valid_area.empty:
-            cheapest_district = valid_area.groupby('Quận')['Price_per_m2'].mean().idxmin()
+        # Tính khu vực rẻ nhất
+        if COL_AREA in df.columns:
+            valid_area = df[df[COL_AREA] > 0].copy()
+            valid_area['Price_per_m2'] = valid_area[COL_PRICE] / valid_area[COL_AREA]
+            cheapest_district = valid_area.groupby(COL_DISTRICT)['Price_per_m2'].mean().idxmin() if not valid_area.empty else "N/A"
         else:
             cheapest_district = "N/A"
-            
-        # 4. Căn đắt nhất
-        max_price = df['Price_Billion'].max()
 
-        # --- HIỂN THỊ ---
         c1.metric("Số nhà đang bán", f"{num_houses:,}")
-        c2.metric("Giá trung bình", f"{avg_price:,.2f} Tỷ")
-        c3.metric("Khu vực rẻ nhất (theo m²)", f"{cheapest_district}")
-        c4.metric("Căn đắt nhất", f"{max_price:,.2f} Tỷ")
+        c2.metric("Giá trung bình", f"{avg_price:,.2f} Triệu")
+        c3.metric("Khu vực rẻ nhất (m²)", f"{cheapest_district}")
+        c4.metric("Căn đắt nhất", f"{max_price:,.2f} Triệu")
 
     st.divider()
-    
-    # --- NHÚNG TABLEAU ---
     st.subheader(" Tableau Visualization")
-    # Đây là mã nhúng mẫu (Bạn có thể thay bằng link Tableau của chính bạn)
+    # (Giữ nguyên code nhúng Tableau của bạn)
     tableau_code = """
     <div class='tableauPlaceholder' id='viz1763483099173' style='position: relative'><noscript><a href='#'><img alt='tk ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bo&#47;Book7_17631271401140&#47;tk&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='Book7_17631271401140&#47;tk' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bo&#47;Book7_17631271401140&#47;tk&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1763483099173');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else { vizElement.style.width='100%';vizElement.style.height='1327px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
                                             vizElement.parentNode.insertBefore(scriptElement, vizElement);                
                                             </script>
-
     """
     components.html(tableau_code, height=650, scrolling=True)
 
 # =========================================================
-# MODULE 2: QUẢN LÝ DỮ LIỆU (CRUD + TÌM KIẾM)
+# MODULE 2: QUẢN LÝ DỮ LIỆU
 # =========================================================
 elif selected == "Quản lý Dữ liệu (CRUD)":
-    st.title("🛠️ Quản lý Dữ liệu (CRUD)")
+    st.title(" Quản lý Dữ liệu")
     
-    # 1. IMPORT
     with st.expander(" Import Dữ liệu mới (CSV)"):
         uploaded_file = st.file_uploader("Chọn file CSV", type=['csv'])
         if uploaded_file is not None:
             try:
                 new_df = pd.read_csv(uploaded_file)
-                st.session_state.df = new_df # Cập nhật vào bộ nhớ
+                st.session_state.df = new_df
                 st.success("Import thành công!")
                 st.rerun()
             except Exception as e:
                 st.error(f"Lỗi file: {e}")
 
-    # 2. TÌM KIẾM (SEARCH)
     st.subheader(" Tìm kiếm & Lọc")
     col_search, col_filter = st.columns(2)
     with col_search:
-        search_term = st.text_input("Tìm kiếm theo Quận hoặc Loại nhà:")
+        search_term = st.text_input("Tìm kiếm (Quận/Loại nhà):")
     with col_filter:
-        price_range = st.slider("Khoảng giá (Tỷ)", 0.0, 100.0, (0.0, 100.0))
+        price_range = st.slider("Khoảng giá (Trieu)", 100.0, 99999.0, (100.0, 99999.0))
     
-    # Logic lọc
     filtered_df = df.copy()
-    if search_term:
+    if COL_PRICE in filtered_df.columns:
+        filtered_df = filtered_df[(filtered_df[COL_PRICE] >= price_range[0]) & (filtered_df[COL_PRICE] <= price_range[1])]
+    
+    if search_term and COL_DISTRICT in filtered_df.columns:
         filtered_df = filtered_df[
-            filtered_df['Quận'].str.contains(search_term, case=False, na=False) | 
-            filtered_df['Loại nhà'].str.contains(search_term, case=False, na=False)
+            filtered_df[COL_DISTRICT].str.contains(search_term, case=False, na=False) | 
+            filtered_df[COL_TYPE].str.contains(search_term, case=False, na=False)
         ]
-    filtered_df = filtered_df[(filtered_df['Price_Billion'] >= price_range[0]) & (filtered_df['Price_Billion'] <= price_range[1])]
 
-    st.info(f"Hiển thị {len(filtered_df)} bản ghi phù hợp.")
+    st.info(f"Hiển thị {len(filtered_df)} bản ghi.")
+    edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
 
-    # 3. HIỂN THỊ & EDIT (UPDATE/DELETE GIÁN TIẾP)
-    st.subheader(" Bảng dữ liệu (Cho phép chỉnh sửa)")
-    # st.data_editor cho phép sửa trực tiếp trên bảng
-    edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True, key="editor")
-
-    # Nút lưu thay đổi
-    if st.button(" Lưu thay đổi vào bộ nhớ"):
-        # Cập nhật lại session_state (Lưu ý: logic này đơn giản, chỉ cập nhật trên các dòng đang lọc)
-        # Trong thực tế cần map theo ID, ở đây ta cập nhật toàn bộ nếu không lọc, hoặc cảnh báo.
+    if st.button("💾 Lưu thay đổi"):
         st.session_state.df = edited_df
         st.success("Đã lưu dữ liệu!")
-    
-    # 4. EXPORT
-    st.subheader(" Export Dữ liệu")
-    csv = edited_df.to_csv(index=False).encode('utf-8')
-    st.download_button(
-        label="Tải xuống file CSV",
-        data=csv,
-        file_name='housing_data_export.csv',
-        mime='text/csv',
-    )
 
 # =========================================================
-# MODULE 3: PHÂN TÍCH & TRỰC QUAN HÓA
+# MODULE 3: PHÂN TÍCH TRỰC QUAN
 # =========================================================
 elif selected == "Phân tích Trực quan":
-    st.title(" Phân tích các yếu tố ảnh hưởng Giá nhà")
+    st.title(" Phân tích Giá trị BĐS")
 
-    if df.empty:
-        st.warning("Không có dữ liệu.")
+    if df.empty or COL_PRICE not in df.columns:
+        st.warning("Chưa có dữ liệu hoặc cột 'Giá nhà' không tồn tại.")
         st.stop()
 
-    # Tab phân chia các góc nhìn
-    tab1, tab2, tab3 = st.tabs([" Vị trí & Giá", " Đặc điểm & Giá", " Tương quan chi tiết"])
+    tab1, tab2, tab3 = st.tabs([" Vị trí & Giá", " Đặc điểm & Giá", " Tương quan"])
 
     with tab1:
-        st.subheader("Phân tích theo Quận/Huyện")
-        # Biểu đồ cột: Giá trung bình theo quận
-        avg_price_quan = df.groupby('Quận')['Price_Billion'].mean().sort_values(ascending=False).reset_index()
-        fig_bar = px.bar(avg_price_quan, x='Quận', y='Price_Billion', color='Price_Billion',
-                         title="Giá nhà trung bình theo Quận", labels={'Price_Billion': 'Giá TB (Tỷ)'})
-        st.plotly_chart(fig_bar, use_container_width=True)
-        
-        # Biểu đồ Boxplot: Phân bố giá
-        fig_box = px.box(df, x='Quận', y='Price_Billion', color='Quận', title="Phân bố dải giá theo Quận")
-        st.plotly_chart(fig_box, use_container_width=True)
+        st.subheader("Giá trung bình theo Quận")
+        if COL_DISTRICT in df.columns:
+            avg_price_quan = df.groupby(COL_DISTRICT)[COL_PRICE].mean().sort_values(ascending=False).reset_index()
+            fig_bar = px.bar(avg_price_quan, x=COL_DISTRICT, y=COL_PRICE, color=COL_PRICE,
+                             labels={COL_PRICE: 'Giá TB (Tỷ)'})
+            st.plotly_chart(fig_bar, use_container_width=True)
 
     with tab2:
-        st.subheader("Phân tích theo Loại hình & Đặc điểm")
+        st.subheader("Phân tích theo Loại hình")
         col_a, col_b = st.columns(2)
         with col_a:
-            # Pie chart: Tỷ lệ các loại nhà
-            type_counts = df['Loại nhà'].value_counts().reset_index()
-            type_counts.columns = ['Loại nhà', 'Số lượng']
-            fig_pie = px.pie(type_counts, values='Số lượng', names='Loại nhà', title="Tỷ lệ các loại hình BĐS")
-            st.plotly_chart(fig_pie, use_container_width=True)
+            if COL_TYPE in df.columns:
+                type_counts = df[COL_TYPE].value_counts().reset_index()
+                type_counts.columns = [COL_TYPE, 'Số lượng']
+                fig_pie = px.pie(type_counts, values='Số lượng', names=COL_TYPE, title="Tỷ lệ Loại hình")
+                st.plotly_chart(fig_pie, use_container_width=True)
         with col_b:
-            # Scatter: Diện tích vs Giá (phân màu theo loại nhà)
-            fig_scatter = px.scatter(df, x='Area_m2', y='Price_Billion', color='Loại nhà', 
-                                     size='Floors', hover_data=['Quận'], title="Tương quan Diện tích - Giá")
-            st.plotly_chart(fig_scatter, use_container_width=True)
+            if COL_AREA in df.columns:
+                fig_scatter = px.scatter(df, x=COL_AREA, y=COL_PRICE, color=COL_TYPE if COL_TYPE in df.columns else None, 
+                                         title="Diện tích vs Giá")
+                st.plotly_chart(fig_scatter, use_container_width=True)
 
     with tab3:
-        st.subheader("Ma trận tương quan (Correlation)")
-        # Chỉ lấy các cột số để tính tương quan
+        st.subheader("Ma trận tương quan")
         numeric_df = df.select_dtypes(include=['float64', 'int64'])
-        # Lọc bớt các cột One-hot để đỡ rối (chỉ lấy các cột chính)
-        main_cols = ['Price_Billion', 'Area_m2', 'Bedrooms', 'Bathrooms', 'Floors', 'Facade', 'Dist_Center_km']
-        corr_matrix = numeric_df[main_cols].corr()
+        # Chọn các cột quan trọng từ danh sách mới
+        potential_cols = [COL_PRICE, COL_AREA, 'Số phòng ngủ', 'Số tầng', 'Rộng', 'Dài']
+        valid_cols = [c for c in potential_cols if c in numeric_df.columns]
         
-        fig_corr = px.imshow(corr_matrix, text_auto=True, aspect="auto", color_continuous_scale='RdBu_r', title="Mức độ ảnh hưởng giữa các yếu tố")
-        st.plotly_chart(fig_corr, use_container_width=True)
+        if valid_cols:
+            corr_matrix = numeric_df[valid_cols].corr()
+            fig_corr = px.imshow(corr_matrix, text_auto=True, aspect="auto", color_continuous_scale='RdBu_r')
+            st.plotly_chart(fig_corr, use_container_width=True)
 
-# =========================================================
-# MODULE 4: DỰ BÁO GIÁ (PREDICTION)
+## =========================================================
+# MODULE 4: DỰ BÁO GIÁ (UPDATE CHO MODEL MỚI)
 # =========================================================
 elif selected == "Dự báo Giá nhà":
-    st.title(" Mô hình Dự đoán Giá trị")
-    st.write("Nhập thông số để ước tính giá trị Bất động sản.")
+    st.title(" Dự báo Giá trị Bất động sản( chỉ mang tính chất tham khảo )")
+    st.markdown("---")
 
-    # Load Model thông minh (Tự sửa lỗi list)
+    # 1. HÀM LOAD MODEL VÀ CỘT (CACHE ĐỂ TĂNG TỐC)
     @st.cache_resource
-    def load_model_ai():
+    def load_model_assets():
         try:
-            # 1. Load file model
-            loaded_object = joblib.load('model_v2_80percent.pkl')
+            # Load Model
+            model = joblib.load('house_price_model.pkl')
             
-            # 2. Kiểm tra xem file load lên là Model hay là List
-            model = None
-            if hasattr(loaded_object, 'predict'):
-                # Trường hợp chuẩn: File chỉ chứa đúng 1 model
-                model = loaded_object
-            elif isinstance(loaded_object, list):
-                # Trường hợp lỗi của bạn: File chứa 1 danh sách (List)
-                # st.warning(f"Phát hiện file chứa danh sách {len(loaded_object)} phần tử. Đang tìm Model...")
-                
-                # Duyệt qua từng phần tử trong list để tìm cái nào là Model (có hàm predict)
-                for item in loaded_object:
-                    if hasattr(item, 'predict'):
-                        model = item
-                        break
-            
-            # 3. Load danh sách cột
-            cols = joblib.load('model_columns_v2.pkl')
+            # Load danh sách cột (Features)
+            cols = joblib.load('model_columns.pkl')
             
             return model, cols
-            
         except Exception as e:
-            st.error(f"Chi tiết lỗi load model: {e}")
+            st.error(f"Lỗi không tìm thấy file model: {e}")
             return None, None
-    model, model_columns = load_model_ai()
+
+    model, model_columns = load_model_assets()
 
     if model is None:
-        st.error("⚠️ Chưa tìm thấy file Model (`model_v2_80percent.pkl`). Vui lòng kiểm tra thư mục.")
+        st.warning("Vui lòng đảm bảo 2 file `house_price_model.pkl` và `model_columns.pkl` nằm cùng thư mục với `app.py`.")
         st.stop()
 
-    # Form nhập liệu
-    with st.form("predict_form"):
+    # 2. TỰ ĐỘNG TRÍCH XUẤT DANH SÁCH LỰA CHỌN TỪ MODEL COLUMNS
+    # Logic: Lọc các cột One-Hot (bắt đầu bằng prefix) để đưa vào Selectbox
+    
+    # Danh sách Quận/Huyện (Prefix: 'Quận_')
+    districts = sorted([c.replace('Quận_', '') for c in model_columns if c.startswith('Quận_')])
+    
+    # Danh sách Phường/Xã (Prefix: 'Huyện_') - Lưu ý: Trong dữ liệu của bạn 'Huyện_' thực chất là tên Phường
+    wards = sorted([c.replace('Huyện_', '') for c in model_columns if c.startswith('Huyện_')])
+    
+    # Loại hình nhà (Prefix: 'Loại hình nhà ở_')
+    house_types = sorted([c.replace('Loại hình nhà ở_', '') for c in model_columns if c.startswith('Loại hình nhà ở_')])
+    
+    # Pháp lý (Prefix: 'Giấy tờ pháp lý_')
+    legal_types = sorted([c.replace('Giấy tờ pháp lý_', '') for c in model_columns if c.startswith('Giấy tờ pháp lý_')])
+
+    # 3. FORM NHẬP LIỆU
+    with st.form("prediction_form"):
+        st.subheader("📋 Thông tin Bất động sản")
+        
+        # Hàng 1: Thông số kích thước
         c1, c2, c3 = st.columns(3)
         with c1:
-            area = st.number_input("Diện tích (m2)", 20.0, 500.0, 60.0)
-            bedroom = st.number_input("Phòng ngủ", 1, 10, 2)
-            bathroom = st.number_input("Phòng tắm", 1, 10, 2)
+            dien_tich = st.number_input("Diện tích (m²)", min_value=10.0, max_value=10000.0, value=50.0, step=1.0)
+            chieu_rong = st.number_input("Chiều Rộng / Mặt tiền (m)", min_value=1.0, max_value=100.0, value=5.0, step=0.5)
         with c2:
-            floors = st.number_input("Số tầng", 1, 10, 1)
-            facade = st.number_input("Mặt tiền (m)", 1.0, 20.0, 4.0)
-            dist = st.number_input("Cách trung tâm (km)", 0.0, 30.0, 5.0)
+            chieu_dai = st.number_input("Chiều Dài (m)", min_value=1.0, max_value=200.0, value=10.0, step=0.5)
+            so_tang = st.number_input("Số tầng", min_value=1, max_value=100, value=3, step=1)
         with c3:
-            # Lấy danh sách quận/loại từ data thực tế
-            quan_list = [c.replace('Dist_', '') for c in model_columns if c.startswith('Dist_')]
-            type_list = [c.replace('Type_', '') for c in model_columns if c.startswith('Type_')]
-            
-            quan_val = st.selectbox("Quận", quan_list)
-            type_val = st.selectbox("Loại nhà", type_list)
+            so_phong = st.number_input("Số phòng ngủ", min_value=1, max_value=50, value=3, step=1)
+            # Ngày tháng mặc định là hiện tại
+            now = datetime.now()
+            nam_gd = st.number_input("Năm giao dịch", value=now.year)
+            thang_gd = st.number_input("Tháng giao dịch", min_value=1, max_value=12, value=now.month)
 
-        st.write("Tiện ích khác:")
-        chk_security = st.checkbox("An ninh tốt", True)
-        chk_redbook = st.checkbox("Sổ đỏ chính chủ", True)
+        st.markdown("---")
+        st.subheader("📍 Vị trí & Phân loại")
         
-        btn_predict = st.form_submit_button("🚀 ĐỊNH GIÁ NGAY")
+        # Hàng 2: Vị trí và Loại hình
+        c4, c5 = st.columns(2)
+        with c4:
+            # Chọn Quận
+            selected_district = st.selectbox("Quận / Huyện", districts)
+            
+            # Chọn Phường (Optional: Có thể lọc phường theo quận nếu có data mapping, ở đây show all)
+            use_ward = st.checkbox("Chọn Phường/Xã cụ thể?", value=False)
+            selected_ward = st.selectbox("Phường / Xã", wards, disabled=not use_ward)
+            
+        with c5:
+            selected_type = st.selectbox("Loại hình nhà ở", house_types)
+            selected_legal = st.selectbox("Giấy tờ pháp lý", legal_types)
 
-    if btn_predict:
-        # Chuẩn bị dữ liệu Input khớp với Model Columns
+        # Nút Submit
+        submit_btn = st.form_submit_button("🚀 DỰ BÁO GIÁ NGAY", use_container_width=True)
+
+    # 4. XỬ LÝ KHI ẤN NÚT DỰ BÁO
+    if submit_btn:
+        # A. Tạo DataFrame chứa đúng các cột mà Model yêu cầu, ban đầu gán bằng 0
         input_data = pd.DataFrame(index=[0], columns=model_columns).fillna(0)
-        
-        # Gán giá trị số
-        input_data['Area_m2'] = area
-        input_data['Bedrooms'] = bedroom
-        input_data['Bathrooms'] = bathroom
-        input_data['Floors'] = floors
-        input_data['Facade'] = facade
-        input_data['Dist_Center_km'] = dist
-        input_data['Security'] = 1 if chk_security else 0
-        input_data['Red_Book'] = 1 if chk_redbook else 0 # Giả định model dùng 0/1 cho sổ đỏ
 
-        # Gán One-hot
-        if f'Dist_{quan_val}' in input_data.columns:
-            input_data[f'Dist_{quan_val}'] = 1
-        if f'Type_{type_val}' in input_data.columns:
-            input_data[f'Type_{type_val}'] = 1
-            
-        # Dự đoán
+        # B. Gán giá trị số (Numeric)
+        # Lưu ý: Tên cột phải khớp CHÍNH XÁC với file model_columns.pkl (Dựa trên log bạn cung cấp)
         try:
-            price_pred = model.predict(input_data)[0]
-            st.success(f"💰 Giá dự đoán: **{price_pred:,.2f} Tỷ VNĐ**")
-        except Exception as e:
-            st.error(f"Lỗi dự đoán: {e}")
+            input_data['Diện tích'] = dien_tich
+            input_data['Dài'] = chieu_dai
+            input_data['Rộng'] = chieu_rong
+            input_data['Số tầng'] = so_tang
+            input_data['Số phòng ngủ'] = so_phong
+            input_data['Năm'] = nam_gd
+            input_data['Tháng'] = thang_gd
+        except KeyError as e:
+            st.error(f"Lỗi tên cột số liệu: {e}. Hãy kiểm tra lại tên cột trong dữ liệu train.")
+            st.stop()
+
+        # C. Gán giá trị One-Hot (Categorical)
+        # Hàm helper để set giá trị 1 cho cột One-hot
+        def set_one_hot(prefix, value):
+            col_name = f"{prefix}{value}"
+            if col_name in input_data.columns:
+                input_data[col_name] = 1
+        
+        # Kích hoạt các cột tương ứng
+        set_one_hot('Quận_', selected_district)
+        set_one_hot('Loại hình nhà ở_', selected_type)
+        set_one_hot('Giấy tờ pháp lý_', selected_legal)
+        
+        if use_ward:
+            set_one_hot('Huyện_', selected_ward)
+
+        # D. Thực hiện dự đoán
+        with st.spinner("Đang tính toán..."):
+            try:
+                predicted_price = model.predict(input_data)[0]
+                
+                # Hiển thị kết quả đẹp mắt
+                st.success("✅ Dự báo thành công!")
+                
+                metric_col1, metric_col2 = st.columns([2, 1])
+                with metric_col1:
+                    st.markdown(f"""
+                    <div style="background-color: #e6fffa; padding: 20px; border-radius: 10px; border: 2px solid #38b2ac; text-align: center;">
+                        <h3 style="color: #2c7a7b; margin:0;">GIÁ TRỊ ƯỚC TÍNH</h3>
+                        <h1 style="color: #285e61; font-size: 48px; margin: 10px 0;">{predicted_price:,.2f} Tỷ</h1>
+                        <p style="color: #4a5568;">~ {(predicted_price * 1_000_000_000 / dien_tich):,.0f} VNĐ / m²</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                
+                with metric_col2:
+                    st.info("Thông tin đầu vào:")
+                    st.write(f"- **Diện tích:** {dien_tich} m²")
+                    st.write(f"- **Vị trí:** {selected_district}")
+                    st.write(f"- **Loại:** {selected_type}")
+
+            except Exception as e:
+                st.error(f"Đã xảy ra lỗi trong quá trình tính toán: {str(e)}")
+                # Mở rộng để debug nếu cần
+                with st.expander("Chi tiết lỗi (Dành cho Dev)"):
+                    st.write(e)
+                    st.write("Danh sách cột đầu vào:", input_data.columns.tolist())

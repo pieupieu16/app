@@ -445,7 +445,7 @@ with st.form("prediction_form"):
         use_ward = st.checkbox("Chọn Phường/Xã cụ thể?", value=False, key='ward_checkbox')
 
         filtered_wards = wards_map.get(selected_district, ["Không tìm thấy Phường/Xã"])
-        # st.write(f"Trạng thái ô kiểm: {st.session_state.ward_checkbox}") # Giữ lại để debug
+        st.write(f"Trạng thái ô kiểm: {st.session_state.ward_checkbox}")
         
         # 4. Truyền giá trị từ session_state vào tham số disabled
         selected_ward = st.selectbox(

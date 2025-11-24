@@ -435,22 +435,24 @@ with st.form("prediction_form"):
     # Hàng 2: Vị trí và Loại hình (Đã di chuyển vào trong form)
     c4, c5 = st.columns(2)
     with c4:
-       # 1. Chọn Quận
+        # 1. Chọn Quận
         selected_district = st.selectbox("Quận / Huyện", districts)
         
         # 2. Lọc danh sách Phường/Xã
         filtered_wards = wards_map.get(selected_district, ["Không tìm thấy Phường/Xã"])
         
-        # 3. SỬ DỤNG KEY cho checkbox
-        # st.checkbox có key='ward_checkbox'
+        # 3. Sử dụng KEY cho checkbox (Rất quan trọng)
         use_ward = st.checkbox("Chọn Phường/Xã cụ thể?", value=False, key='ward_checkbox')
-        st.write(f"Trạng thái ô kiểm: {st.session_state.ward_checkbox}")
         
-        # 4. Truyền giá trị từ session_state vào tham số disabled
+        # Dòng debug (có thể gây nhiễu, nên xóa hoặc dùng session_state)
+        # st.write(f"Trạng thái ô kiểm: {st.session_state.ward_checkbox}") 
+        
+        # 4. Sử dụng giá trị đã đồng bộ trong session_state để điều khiển disabled
         selected_ward = st.selectbox(
             "Phường / Xã", 
             filtered_wards, 
-            disabled= not st.session_state.ward_checkbox # Dùng giá trị từ session_state
+            # Đảm bảo bạn sử dụng st.session_state.ward_checkbox ở đây
+            disabled= not st.session_state.ward_checkbox 
         )
     
     with c5:

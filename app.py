@@ -104,35 +104,72 @@ if selected == "Trang chủ & Tableau":
         avg_price = df[COL_PRICE].mean()
         max_price = df[COL_PRICE].max()
         
-        if COL_AREA in df.columns and COL_DISTRICT in df.columns:
-            # 1. Lọc dữ liệu hợp lệ (Diện tích > 0 và Giá nhà hợp lệ)
-            valid_area = df[(df[COL_AREA] > 0) & (df[COL_PRICE].notna())].copy()
+        # Định nghĩa các tiền tố của cột Quận/Huyện (dựa trên dữ liệu bạn gửi)
+        DISTRICT_PREFIXES_LIST = ['Quận_Huyện', 'Quận_Quận', 'Quận_Thị xã']
+        # Định nghĩa các tiền tố cần loại bỏ để lấy tên Quận/Huyện
+        PREFIXES_TO_REMOVE = ['Quận_Huyện ', 'Quận_Quận ', 'Quận_Thị xã ', 'Quận_'] 
+
+        # Khởi tạo giá trị mặc định
+        cheapest_district = "N/A"
+
+        if COL_AREA in df.columns and COL_PRICE in df.columns:
             
-            # --- BƯỚC SỬA: Loại bỏ các dòng có giá trị thiếu trong cột Quận/Huyện ---
-            valid_area = valid_area.dropna(subset=[COL_DISTRICT])
-            
-            # 2. KIỂM TRA ĐẢM BẢO CÓ DỮ LIỆU ĐỂ XỬ LÝ
-            if not valid_area.empty:
-                valid_area['Price_per_m2'] = valid_area[COL_PRICE] / valid_area[COL_AREA]
+            # 1. TẠO CỘT DISTRICT GỐC (DE-ONE-HOT ENCODING)
+            try:
+                # Lấy danh sách tất cả các cột Quận/Huyện One-Hot
+                district_cols = [col for col in df.columns if any(col.startswith(p) for p in DISTRICT_PREFIXES_LIST)]
                 
-                try:
-                    # 3. Tính giá trung bình trên mỗi mét vuông theo Quận/Huyện
-                    grouped_prices = valid_area.groupby(COL_DISTRICT)['Price_per_m2'].mean()
+                if not district_cols:
+                    cheapest_district = "Lỗi: Không tìm thấy cột Quận/Huyện (One-Hot)"
+                else:
+                    # Hàm để tái tạo lại tên Quận/Huyện
+                    def get_district_name(row, cols, prefixes_to_remove):
+                        # Tìm tên cột có giá trị lớn nhất (giá trị 1)
+                        selected_col = row[cols].idxmax()
+                        
+                        # Kiểm tra để đảm bảo đó là 1, nếu không là 'Unknown'
+                        if row[selected_col] == 1:
+                            name = selected_col
+                            for prefix in prefixes_to_remove:
+                                if name.startswith(prefix):
+                                    name = name[len(prefix):]
+                                    break
+                            return name
+                        return 'Unknown' 
+
+                    # Áp dụng hàm để tạo cột tên Quận/Huyện mới tạm thời
+                    df['District_Name'] = df.apply(lambda row: get_district_name(row, district_cols, PREFIXES_TO_REMOVE), axis=1)
+
+                    # 2. LỌC VÀ TÍNH TOÁN
                     
-                    if not grouped_prices.empty:
-                        cheapest_district = grouped_prices.idxmin()
+                    # Lọc dữ liệu hợp lệ: Diện tích > 0, Giá nhà > 0, và tên Quận/Huyện đã được xác định
+                    valid_area = df[
+                        (df[COL_AREA] > 0) & 
+                        (df[COL_PRICE] > 0) &
+                        (df['District_Name'] != 'Unknown')
+                    ].copy()
+                    
+                    # Kiểm tra: Đảm bảo có đủ Quận/Huyện để so sánh
+                    if valid_area['District_Name'].nunique() > 1:
+                        valid_area['Price_per_m2'] = valid_area[COL_PRICE] / valid_area[COL_AREA]
+                        
+                        # Tính giá trung bình trên mỗi mét vuông theo Quận/Huyện
+                        grouped_prices = valid_area.groupby('District_Name')['Price_per_m2'].mean()
+                        
+                        if not grouped_prices.empty:
+                            cheapest_district = grouped_prices.idxmin()
+                        else:
+                            cheapest_district = "N/A (Không tính được giá trung bình)"
                     else:
-                        cheapest_district = "N/A (Không đủ nhóm)"
-                except Exception as e:
-                    cheapest_district = "Lỗi tính toán" 
-            else:
-                cheapest_district = "N/A (Không có dữ liệu hợp lệ)"
-        else:
-            cheapest_district = "N/A (Thiếu cột Diện tích hoặc Quận/Huyện)"
+                        cheapest_district = "N/A (Chỉ có 1 khu vực hoặc không đủ dữ liệu)"
+
+            except Exception as e:
+                cheapest_district = f"Lỗi xử lý dữ liệu: {str(e)}"\
+                
         c1.metric("Số nhà đang bán", f"{num_houses:,}")
         c2.metric("Giá trung bình", f"{avg_price/1000:,.2f} Tỷ") # Giả sử đơn vị là Tỷ
         c3.metric("Khu vực rẻ nhất (m²)", f"{cheapest_district}")
-        c4.metric("Căn đắt nhất", f"{max_price:,.2f} Tỷ")
+        c4.metric("Căn đắt nhất", f"{max_price/1000:,.2f} Tỷ")
     else:
         st.info("Vui lòng Import dữ liệu ở tab 'Quản lý Dữ liệu' để xem thống kê.")
 
@@ -168,7 +205,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
     with col_search:
         search_term = st.text_input("Tìm kiếm (Quận/Loại nhà):")
     with col_filter:
-        price_range = st.slider("Khoảng giá (Tỷ)", 0.0, 100.0, (0.0, 100.0))
+        price_range = st.slider("Khoảng giá (Triệu)", 0.0, 100.0, (0.0, 10000000.0))
     
     filtered_df = df.copy()
     if not filtered_df.empty:
@@ -187,7 +224,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
         st.info(f"Hiển thị {len(filtered_df)} bản ghi.")
         edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
 
-        if st.button("💾 Lưu thay đổi"):
+        if st.button(" Lưu thay đổi"):
             st.session_state.df = edited_df
             st.success("Đã lưu dữ liệu tạm thời (Reload trang sẽ mất nếu không lưu xuống file)!")
     else:
@@ -245,7 +282,7 @@ elif selected == "Phân tích Trực quan":
 # =========================================================
 elif selected == "Dự báo Giá nhà":
 
-    st.title(" 🏠 Dự báo Giá trị Bất động sản")
+    st.title("  Dự báo Giá trị Bất động sản")
     st.markdown("---")
 
     # 1. LOAD MODEL

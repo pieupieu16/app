@@ -105,25 +105,28 @@ if selected == "Trang chủ & Tableau":
         max_price = df[COL_PRICE].max()
         
         if COL_AREA in df.columns and COL_DISTRICT in df.columns:
-            # 1. Lọc dữ liệu hợp lệ (Diện tích > 0)
+            # 1. Lọc dữ liệu hợp lệ (Diện tích > 0 và Giá nhà hợp lệ)
             valid_area = df[(df[COL_AREA] > 0) & (df[COL_PRICE].notna())].copy()
+            
+            # --- BƯỚC SỬA: Loại bỏ các dòng có giá trị thiếu trong cột Quận/Huyện ---
+            valid_area = valid_area.dropna(subset=[COL_DISTRICT])
             
             # 2. KIỂM TRA ĐẢM BẢO CÓ DỮ LIỆU ĐỂ XỬ LÝ
             if not valid_area.empty:
                 valid_area['Price_per_m2'] = valid_area[COL_PRICE] / valid_area[COL_AREA]
                 
                 try:
-                    # Tính giá trung bình trên mỗi mét vuông theo Quận/Huyện
+                    # 3. Tính giá trung bình trên mỗi mét vuông theo Quận/Huyện
                     grouped_prices = valid_area.groupby(COL_DISTRICT)['Price_per_m2'].mean()
                     
                     if not grouped_prices.empty:
                         cheapest_district = grouped_prices.idxmin()
                     else:
-                        cheapest_district = "N/A (Không tính được nhóm)"
+                        cheapest_district = "N/A (Không đủ nhóm)"
                 except Exception as e:
-                    cheapest_district = "Lỗi tính toán" # Hoặc f"Lỗi: {e}" để debug
+                    cheapest_district = "Lỗi tính toán" 
             else:
-                cheapest_district = "N/A (Dữ liệu Diện tích/Giá không hợp lệ)"
+                cheapest_district = "N/A (Không có dữ liệu hợp lệ)"
         else:
             cheapest_district = "N/A (Thiếu cột Diện tích hoặc Quận/Huyện)"
         c1.metric("Số nhà đang bán", f"{num_houses:,}")

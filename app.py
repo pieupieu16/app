@@ -220,290 +220,326 @@ elif selected == "Phân tích Trực quan":
             fig_corr = px.imshow(corr_matrix, text_auto=True, aspect="auto", color_continuous_scale='RdBu_r')
             st.plotly_chart(fig_corr, use_container_width=True)
 
-## =========================================================
+# =========================================================
 # MODULE 4: DỰ BÁO GIÁ (UPDATE CHO MODEL MỚI)
 # =========================================================
-elif selected == "Dự báo Giá nhà":
-    st.title(" Dự báo Giá trị Bất động sản( chỉ mang tính chất tham khảo )")
-    st.markdown("---")
+# Giả định: Đoạn code này nằm trong khối `elif selected == "Dự báo Giá nhà":`
 
-    # 1. HÀM LOAD MODEL VÀ CỘT (CACHE ĐỂ TĂNG TỐC)
-    @st.cache_resource
-    def load_model_assets():
-        try:
-            # Load Model
-            model = joblib.load('house_price_model.pkl')
-            
-            # Load danh sách cột (Features)
-            cols = joblib.load('model_columns.pkl')
-            
-            return model, cols
-        except Exception as e:
-            st.error(f"Lỗi không tìm thấy file model: {e}")
-            return None, None
+st.title(" 🏠 Dự báo Giá trị Bất động sản (chỉ mang tính chất tham khảo)")
+st.markdown("---")
 
-    model, model_columns = load_model_assets()
+# 1. HÀM LOAD MODEL VÀ CỘT (CACHE ĐỂ TĂNG TỐC)
+@st.cache_resource
+def load_model_assets():
+    try:
+        # Load Model
+        # Cần đảm bảo file này tồn tại
+        model = joblib.load('house_price_model.pkl')
+        
+        # Load danh sách cột (Features)
+        # Cần đảm bảo file này tồn tại
+        cols = joblib.load('model_columns.pkl')
+        
+        return model, cols
+    except Exception as e:
+        st.error(f"Lỗi không tìm thấy file model: {e}")
+        return None, None
 
-    if model is None:
-        st.warning("Vui lòng đảm bảo 2 file `house_price_model.pkl` và `model_columns.pkl` nằm cùng thư mục với `app.py`.")
-        st.stop()
+model, model_columns = load_model_assets()
 
-    # 2. TỰ ĐỘNG TRÍCH XUẤT DANH SÁCH LỰA CHỌN TỪ MODEL COLUMNS
-    # Logic: Lọc các cột One-Hot (bắt đầu bằng prefix) để đưa vào Selectbox
+if model is None:
+    st.warning("Vui lòng đảm bảo 2 file `house_price_model.pkl` và `model_columns.pkl` nằm cùng thư mục với `app.py`.")
+    # Đặt st.stop() ở đây để dừng nếu model không load được
+    # st.stop()
+
+# --- Định nghĩa data mapping (Đảm bảo các biến này được định nghĩa) ---
+
+# 2. TỰ ĐỘNG TRÍCH XUẤT DANH SÁCH LỰA CHỌN TỪ MODEL COLUMNS
+# (Sử dụng các danh sách bạn đã cung cấp)
+
+# Danh sách Quận/Huyện (Prefix: 'Quận_')
+districts = [
+    "Chương Mỹ", "Gia Lâm", "Hoài Đức", "Mê Linh", "Mỹ Đức", "Phú Xuyên", 
+    "Phúc Thọ", "Quốc Oai", "Sóc Sơn", "Thanh Oai", "Thanh Trì", "Thường Tín", 
+    "Thạch Thất", "Đan Phượng", "Đông Anh", 
+    # Các Quận
+    "Ba Đình", "Bắc Từ Liêm", "Cầu Giấy", "Hai Bà Trưng", "Hoàn Kiếm", "Hoàng Mai", 
+    "Hà Đông", "Long Biên", "Nam Từ Liêm", "Thanh Xuân", "Tây Hồ", "Đống Đa", 
+    "Thị xã Sơn Tây"
+]
+
+# Danh sách Phường/Xã (Đã rút gọn để code dễ đọc hơn, giữ nguyên nội dung bạn cung cấp)
+wards_map = {
+    # CÁC QUẬN NỘI THÀNH VÀ LÂN CẬN
+    "Ba Đình": ["Phường Cống Vị", "Phường Giảng Võ", "Phường Kim Mã", "Phường Liễu Giai", 
+                 "Phường Ngọc Hà", "Phường Ngọc Khánh", "Phường Phúc Xá", "Phường Quán Thánh", 
+                 "Phường Thành Công", "Phường Trúc Bạch", "Phường Vĩnh Phúc", "Phường Đội Cấn", "Phường Điện Biên"],
     
-    # Danh sách Quận/Huyện (Prefix: 'Quận_')
-    districts = [
-        "Chương Mỹ", "Gia Lâm", "Hoài Đức", "Mê Linh", "Mỹ Đức", "Phú Xuyên", 
-        "Phúc Thọ", "Quốc Oai", "Sóc Sơn", "Thanh Oai", "Thanh Trì", "Thường Tín", 
-        "Thạch Thất", "Đan Phượng", "Đông Anh", 
-        # Các Quận
-        "Ba Đình", "Bắc Từ Liêm", "Cầu Giấy", "Hai Bà Trưng", "Hoàn Kiếm", "Hoàng Mai", 
-        "Hà Đông", "Long Biên", "Nam Từ Liêm", "Thanh Xuân", "Tây Hồ", "Đống Đa", 
-        "Thị xã Sơn Tây"
-    ]
+    "Hoàn Kiếm": ["Phường Chương Dương", "Phường Cửa Nam", "Phường Cửa Đông", "Phường Hàng Buồm", 
+                  "Phường Hàng Bài", "Phường Hàng Bông", "Phường Hàng Bạc", "Phường Hàng Bồ", 
+                  "Phường Hàng Gai", "Phường Hàng Mã", "Phường Hàng Trống", "Phường Hàng Đào", 
+                  "Phường Lý Thái Tổ", "Phường Phan Chu Trinh", "Phường Phúc Tân", "Phường Tràng Tiền", "Phường Đồng Xuân", "Phường Yết Kiêu"],
     
-    # Danh sách Phường/Xã (Prefix: 'Huyện_') - Lưu ý: Trong dữ liệu của bạn 'Huyện_' thực chất là tên Phường
-    wards_map = {
-        # CÁC QUẬN NỘI THÀNH VÀ LÂN CẬN
-        "Ba Đình": ["Phường Cống Vị", "Phường Giảng Võ", "Phường Kim Mã", "Phường Liễu Giai", 
-                    "Phường Ngọc Hà", "Phường Ngọc Khánh", "Phường Phúc Xá", "Phường Quán Thánh", 
-                    "Phường Thành Công", "Phường Trúc Bạch", "Phường Vĩnh Phúc", "Phường Đội Cấn", "Phường Điện Biên"],
-        
-        "Hoàn Kiếm": ["Phường Chương Dương", "Phường Cửa Nam", "Phường Cửa Đông", "Phường Hàng Buồm", 
-                    "Phường Hàng Bài", "Phường Hàng Bông", "Phường Hàng Bạc", "Phường Hàng Bồ", 
-                    "Phường Hàng Gai", "Phường Hàng Mã", "Phường Hàng Trống", "Phường Hàng Đào", 
-                    "Phường Lý Thái Tổ", "Phường Phan Chu Trinh", "Phường Phúc Tân", "Phường Tràng Tiền", "Phường Đồng Xuân", "Phường Yết Kiêu"],
-        
-        "Hai Bà Trưng": ["Phường Bách Khoa", "Phường Bùi Thị Xuân", "Phường Bạch Mai", "Phường Bạch Đằng", 
-                        "Phường Cầu Dền", "Phường Đồng Nhân", "Phường Đồng Tâm", "Phường Kim Liên", 
-                        "Phường Lê Đại Hành", "Phường Minh Khai", "Phường Nguyễn Du", "Phường Ngô Thì Nhậm", 
-                        "Phường Phạm Đình Hổ", "Phường Phố Huế", "Phường Quỳnh Lôi", "Phường Quỳnh Mai", 
-                        "Phường Thanh Lương", "Phường Thanh Nhàn", "Phường Trương Định", "Phường Vĩnh Tuy", "Phường Đống Mác"],
-        
-        "Đống Đa": ["Phường Hàng Bột", "Phường Khâm Thiên", "Phường Khương Thượng", "Phường Kim Liên", 
-                    "Phường Láng Hạ", "Phường Láng Thượng", "Phường Nam Đồng", "Phường Nguyễn Trãi", 
-                    "Phường Ngã Tư Sở", "Phường Phương Liên", "Phường Phương Mai", "Phường Quốc Tử Giám", 
-                    "Phường Thịnh Quang", "Phường Thổ Quan", "Phường Trung Liệt", "Phường Trung Phụng", 
-                    "Phường Trung Tự", "Phường Văn Chương", "Phường Văn Miếu", "Phường Ô Chợ Dừa"],
-        
-        "Cầu Giấy": ["Phường Cầu Diễn", "Phường Dịch Vọng", "Phường Dịch Vọng Hậu", "Phường Mai Dịch", 
-                    "Phường Nghĩa Tân", "Phường Nghĩa Đô", "Phường Quan Hoa", "Phường Trung Hoà", "Phường Yên Hoà"],
-        
-        "Tây Hồ": ["Phường Bưởi", "Phường Nhật Tân", "Phường Quảng An", "Phường Thụy Khuê", 
-                "Phường Tứ Liên", "Phường Xuân La", "Phường Yên Phụ"],
-
-        "Thanh Xuân": ["Phường Hạ Đình", "Phường Khương Mai", "Phường Khương Trung", "Phường Khương Đình", 
-                    "Phường Kim Giang", "Phường Nhân Chính", "Phường Phương Liệt", "Phường Thanh Xuân Bắc", 
-                    "Phường Thanh Xuân Nam", "Phường Thanh Xuân Trung", "Phường Thượng Đình", "Phường Định Công"], # Định Công thường thuộc Hoàng Mai nhưng có thể liên quan
-        
-        "Hoàng Mai": ["Phường Giáp Bát", "Phường Hoàng Liệt", "Phường Hoàng Văn Thụ", "Phường Lĩnh Nam", 
-                    "Phường Mai Động", "Phường Thịnh Liệt", "Phường Trần Phú", "Phường Tân Mai", 
-                    "Phường Tương Mai", "Phường Vĩnh Hưng", "Phường Yên Sở", "Phường Đại Kim", 
-                    "Phường Định Công", "Phường Đồng Tâm", "Phường Vĩnh Tuy", "Phường Thanh Trì"], # (Phường, không phải Huyện)
-        
-        "Long Biên": ["Phường Bồ Đề", "Phường Cự Khối", "Phường Gia Thụy", "Phường Giang Biên", 
-                    "Phường Long Biên", "Phường Ngọc Lâm", "Phường Ngọc Thụy", "Phường Phúc Đồng", 
-                    "Phường Phúc Lợi", "Phường Phúc Tân", "Phường Phúc Xá", "Phường Sài Đồng", 
-                    "Phường Thạch Bàn", "Phường Thượng Thanh", "Phường Việt Hưng", "Phường Đức Giang"],
-
-        "Bắc Từ Liêm": ["Phường Cầu Diễn", "Phường Cổ Nhuế 1", "Phường Cổ Nhuế 2", "Phường Liên Mạc", 
-                        "Phường Minh Khai", "Phường Phú Diễn", "Phường Phúc Diễn", "Phường Thượng Cát", 
-                        "Phường Thụy Phương", "Phường Tây Tựu", "Phường Xuân Tảo", "Phường Xuân Đỉnh", "Phường Đông Ngạc", "Phường Đức Thắng"],
-        
-        "Nam Từ Liêm": ["Phường Cầu Diễn", "Phường Mễ Trì", "Phường Mỹ Đình 1", "Phường Mỹ Đình 2", 
-                        "Phường Phú Đô", "Phường Phương Canh", "Phường Trung Văn", "Phường Tây Mỗ", "Phường Xuân Phương", "Phường Đại Mỗ"],
-        
-        "Hà Đông": ["Phường Dương Nội", "Phường Hà Cầu", "Phường Kiến Hưng", "Phường La Khê", 
-                    "Phường Mộ Lao", "Phường Nguyễn Trãi", "Phường Phú La", "Phường Phú Lãm", 
-                    "Phường Phú Lương", "Phường Phú Thịnh", "Phường Phúc La", "Phường Quang Trung", 
-                    "Phường Vạn Phúc", "Phường Văn Quán", "Phường Yên Nghĩa", "Phường Đồng Mai"],
-        
-        # CÁC HUYỆN VÀ THỊ XÃ
-        "Đông Anh": ["Thị trấn Đông Anh", "Xã Bắc Hồng", "Xã Dục Tú", "Xã Hải Bối", "Xã Kim Chung", 
-                    "Xã Kim Nỗ", "Xã Liên Hà", "Xã Mai Lâm", "Xã Nam Hồng", "Xã Nguyên Khê", 
-                    "Xã Tiên Dương", "Xã Uy Nỗ", "Xã Vân Nội", "Xã Võng La", "Xã Xuân Giang", 
-                    "Xã Xuân Nộn", "Xã Yên Thường", "Xã Đại Mạch", "Xã Đông Hội"],
-        
-        "Gia Lâm": ["Thị trấn Trâu Quỳ", "Thị trấn Yên Viên", "Xã Bát Tràng", "Xã Cổ Bi", "Xã Cự Khối", 
-                    "Xã Đa Tốn", "Xã Kiêu Kỵ", "Xã Ninh Hiệp", "Xã Phú Thị", "Xã Phù Đổng", 
-                    "Xã Trung Mầu", "Xã Yên Viên", "Xã Đông Dư", "Xã Đặng Xá", "Xã Đình Xuyên"],
-        
-        "Hoài Đức": ["Thị trấn Trạm Trôi", "Xã An Khánh", "Xã An Thượng", "Xã Cát Quế", "Xã Di Trạch", 
-                    "Xã Dương Liễu", "Xã Lại Yên", "Xã La Phù", "Xã Song Phương", "Xã Sơn Đồng", 
-                    "Xã Tiền Yên", "Xã Vân Canh", "Xã Vân Côn", "Xã Yên Sở", "Xã Đông La", "Xã Đức Thượng"],
-        
-        "Thanh Trì": ["Thị trấn Văn Điển", "Xã Duyên Hà", "Xã Duyên Thái", "Xã Hữu Hoà", "Xã Khánh Hà", 
-                    "Xã Liên Ninh", "Xã Ngọc Hồi", "Xã Ngũ Hiệp", "Xã Tả Thanh Oai", "Xã Tam Hiệp", 
-                    "Xã Tân Triều", "Xã Tứ Hiệp", "Xã Vĩnh Quỳnh", "Xã Văn Bình", "Xã Yên Mỹ", 
-                    "Xã Thanh Liệt"], # (Loại trừ các phường đã xếp vào Quận khác)
-        
-        "Thạch Thất": ["Thị trấn Liên Quan", "Xã Bình Phú", "Xã Bình Yên", "Xã Cẩm Quan", "Xã Cổ Đông", 
-                    "Xã Hạ Bằng", "Xã Hữu Bằng", "Xã Hương Ngải", "Xã Kim Quan", "Xã Lại Thượng", 
-                    "Xã Phú Kim", "Xã Phú Mãn", "Xã Phùng Xá", "Xã Tân Xã", "Xã Thạch Hoà", 
-                    "Xã Tiên Xuân", "Xã Yên Bình", "Xã Yên Trung", "Xã Canh Nậu", "Xã Đồng Trúc"],
-        
-        "Sóc Sơn": ["Thị trấn Sóc Sơn", "Xã Bắc Sơn", "Xã Hiền Ninh", "Xã Kim Lũ", "Xã Mai Đình", 
-                    "Xã Minh Phú", "Xã Minh Trí", "Xã Nam Sơn", "Xã Phù Linh", "Xã Phù Lỗ", 
-                    "Xã Quang Tiến", "Xã Tân Dân", "Xã Thanh Xuân", "Xã Tiên Dược", "Xã Trung Giã", 
-                    "Xã Việt Long", "Xã Xuân Giang", "Xã Xuân Thu"], # (Loại trừ các phường/xã đã xếp vào Quận khác)
-
-        "Thường Tín": ["Thị trấn Thường Tín", "Xã Hà Hồi", "Xã Hiền Giang", "Xã Hòa Bình", "Xã Hồng Vân", 
-                    "Xã Khánh Hà", "Xã Lê Lợi", "Xã Liên Phương", "Xã Minh Cường", "Xã Nghiêm Xuyên", 
-                    "Xã Nhị Khê", "Xã Ninh Sở", "Xã Quất Động", "Xã Thắng Lợi", "Xã Thống Nhất", 
-                    "Xã Tiền Phong", "Xã Tô Hiệu", "Xã Tự Nhiên", "Xã Vạn Điểm", "Xã Văn Bình", "Xã Văn Phú"],
-
-        "Chương Mỹ": ["Thị trấn Chúc Sơn", "Thị trấn Xuân Mai", "Xã Hợp Thanh", "Xã Nam Phương Tiến", "Xã Phụng Châu", 
-                    "Xã Thủy Xuân Tiên", "Xã Đông Phương Yên", "Xã Trung Hòa", "Xã Văn Võ", "Xã Đồng Lạc"],
-        
-        "Đan Phượng": ["Thị trấn Phùng", "Xã Đan Phượng", "Xã Đồng Tháp", "Xã Hạ Mỗ", "Xã Hồng Hà", 
-                    "Xã Liên Hà", "Xã Liên Hồng", "Xã Phương Đình", "Xã Song Phượng", "Xã Thọ An", 
-                    "Xã Thọ Xuân", "Xã Thượng Mỗ", "Xã Trung Châu"],
-        
-        "Phú Xuyên": ["Thị trấn Phú Xuyên", "Xã Bạch Hạ", "Xã Châu Can", "Xã Chuyên Mỹ", "Xã Đại Thắng", 
-                    "Xã Hồng Thái", "Xã Khai Thái", "Xã Minh Tân", "Xã Nam Phong", "Xã Nam Triều", 
-                    "Xã Phú Châu", "Xã Phú Túc", "Xã Phúc Tiến", "Xã Quang Lãng", "Xã Quang Trung", 
-                    "Xã Sơn Hà", "Xã Tân Dân", "Xã Tri Thủy", "Xã Tri Trung", "Xã Văn Hoàng", "Xã Vân Từ"],
-        
-        "Quốc Oai": ["Thị trấn Quốc Oai", "Xã Cấn Hữu", "Xã Cộng Hòa", "Xã Đại Thành", "Xã Đồng Quang", 
-                    "Xã Hòa Thạch", "Xã Liệp Tuyết", "Xã Ngọc Liệp", "Xã Ngọc Mỹ", "Xã Phú Cát", 
-                    "Xã Phú Mãn", "Xã Phượng Cách", "Xã Sài Sơn", "Xã Tuyết Nghĩa", "Xã Yên Sơn"],
-        
-        "Thị xã Sơn Tây": ["Phường Lê Lợi", "Phường Ngô Quyền", "Phường Phú Thịnh", "Phường Quang Trung", 
-                        "Phường Sơn Lộc", "Phường Trung Hưng", "Phường Viên Sơn", "Phường Xuân Khanh", 
-                        "Xã Cổ Đông", "Xã Đường Lâm", "Xã Kim Sơn", "Xã Sơn Đông", "Xã Thanh Mỹ", "Xã Xuân Sơn"],
-        
-        "Mê Linh": ["Thị trấn Quang Minh", "Xã Chu Phan", "Xã Đại Thịnh", "Xã Hoàng Kim", "Xã Kim Hoa", 
-                    "Xã Liên Mạc", "Xã Mê Linh", "Xã Tam Đồng", "Xã Thạch Đà", "Xã Tiền Phong", 
-                    "Xã Tráng Việt", "Xã Tự Lập", "Xã Văn Khê", "Xã Vạn Yên", "Xã Thanh Lâm"],
-        
-        "Phúc Thọ": ["Thị trấn Phúc Thọ", "Xã Cẩm Đình", "Xã Hát Môn", "Xã Hiệp Thuận", "Xã Liên Hiệp", 
-                    "Xã Long Xuyên", "Xã Ngọc Tảo", "Xã Phụng Thượng", "Xã Sen Chiểu", "Xã Tam Thuấn", 
-                    "Xã Thanh Đa", "Xã Thượng Cốc", "Xã Tích Giang", "Xã Vân Hà", "Xã Vân Nam", "Xã Võng Xuyên", "Xã Xuân Phú"],
-        
-        "Mỹ Đức": ["Thị trấn Đại Nghĩa", "Xã An Mỹ", "Xã An Phú", "Xã Bột Xuyên", "Xã Đại Hưng", 
-                "Xã Đồng Tâm", "Xã Hồng Sơn", "Xã Hợp Thanh", "Xã Hợp Tiến", "Xã Hùng Tiến", 
-                "Xã Hương Sơn", "Xã Lê Thanh", "Xã Mỹ Thành", "Xã Phù Lưu Tế", "Xã Phúc Lâm", 
-                "Xã Thượng Lâm", "Xã Tuy Lai", "Xã Vạn Kim"],
-        
-        "Thanh Oai": ["Thị trấn Kim Bài", "Xã Bích Hòa", "Xã Cự Khê", "Xã Dân Hòa", "Xã Hồng Dương", 
-                    "Xã Kim An", "Xã Kim Thư", "Xã Liên Châu", "Xã Mỹ Hưng", "Xã Phương Trung", 
-                    "Xã Tam Hưng", "Xã Thanh Cao", "Xã Thanh Mai", "Xã Thanh Văn", "Xã Xuân Dương"],
-        
+    "Hai Bà Trưng": ["Phường Bách Khoa", "Phường Bùi Thị Xuân", "Phường Bạch Mai", "Phường Bạch Đằng", 
+                     "Phường Cầu Dền", "Phường Đồng Nhân", "Phường Đồng Tâm", "Phường Kim Liên", 
+                     "Phường Lê Đại Hành", "Phường Minh Khai", "Phường Nguyễn Du", "Phường Ngô Thì Nhậm", 
+                     "Phường Phạm Đình Hổ", "Phường Phố Huế", "Phường Quỳnh Lôi", "Phường Quỳnh Mai", 
+                     "Phường Thanh Lương", "Phường Thanh Nhàn", "Phường Trương Định", "Phường Vĩnh Tuy", "Phường Đống Mác"],
     
-    }
+    "Đống Đa": ["Phường Hàng Bột", "Phường Khâm Thiên", "Phường Khương Thượng", "Phường Kim Liên", 
+                "Phường Láng Hạ", "Phường Láng Thượng", "Phường Nam Đồng", "Phường Nguyễn Trãi", 
+                "Phường Ngã Tư Sở", "Phường Phương Liên", "Phường Phương Mai", "Phường Quốc Tử Giám", 
+                "Phường Thịnh Quang", "Phường Thổ Quan", "Phường Trung Liệt", "Phường Trung Phụng", 
+                "Phường Trung Tự", "Phường Văn Chương", "Phường Văn Miếu", "Phường Ô Chợ Dừa"],
     
-    # Loại hình nhà (Prefix: 'Loại hình nhà ở_')
+    "Cầu Giấy": ["Phường Cầu Diễn", "Phường Dịch Vọng", "Phường Dịch Vọng Hậu", "Phường Mai Dịch", 
+                 "Phường Nghĩa Tân", "Phường Nghĩa Đô", "Phường Quan Hoa", "Phường Trung Hoà", "Phường Yên Hoà"],
+    
+    "Tây Hồ": ["Phường Bưởi", "Phường Nhật Tân", "Phường Quảng An", "Phường Thụy Khuê", 
+               "Phường Tứ Liên", "Phường Xuân La", "Phường Yên Phụ"],
+
+    "Thanh Xuân": ["Phường Hạ Đình", "Phường Khương Mai", "Phường Khương Trung", "Phường Khương Đình", 
+                   "Phường Kim Giang", "Phường Nhân Chính", "Phường Phương Liệt", "Phường Thanh Xuân Bắc", 
+                   "Phường Thanh Xuân Nam", "Phường Thanh Xuân Trung", "Phường Thượng Đình", "Phường Định Công"], # Định Công thường thuộc Hoàng Mai nhưng có thể liên quan
+    
+    "Hoàng Mai": ["Phường Giáp Bát", "Phường Hoàng Liệt", "Phường Hoàng Văn Thụ", "Phường Lĩnh Nam", 
+                  "Phường Mai Động", "Phường Thịnh Liệt", "Phường Trần Phú", "Phường Tân Mai", 
+                  "Phường Tương Mai", "Phường Vĩnh Hưng", "Phường Yên Sở", "Phường Đại Kim", 
+                  "Phường Định Công", "Phường Đồng Tâm", "Phường Vĩnh Tuy", "Phường Thanh Trì"], # (Phường, không phải Huyện)
+    
+    "Long Biên": ["Phường Bồ Đề", "Phường Cự Khối", "Phường Gia Thụy", "Phường Giang Biên", 
+                  "Phường Long Biên", "Phường Ngọc Lâm", "Phường Ngọc Thụy", "Phường Phúc Đồng", 
+                  "Phường Phúc Lợi", "Phường Phúc Tân", "Phường Phúc Xá", "Phường Sài Đồng", 
+                  "Phường Thạch Bàn", "Phường Thượng Thanh", "Phường Việt Hưng", "Phường Đức Giang"],
+
+    "Bắc Từ Liêm": ["Phường Cầu Diễn", "Phường Cổ Nhuế 1", "Phường Cổ Nhuế 2", "Phường Liên Mạc", 
+                    "Phường Minh Khai", "Phường Phú Diễn", "Phường Phúc Diễn", "Phường Thượng Cát", 
+                    "Phường Thụy Phương", "Phường Tây Tựu", "Phường Xuân Tảo", "Phường Xuân Đỉnh", "Phường Đông Ngạc", "Phường Đức Thắng"],
+    
+    "Nam Từ Liêm": ["Phường Cầu Diễn", "Phường Mễ Trì", "Phường Mỹ Đình 1", "Phường Mỹ Đình 2", 
+                    "Phường Phú Đô", "Phường Phương Canh", "Phường Trung Văn", "Phường Tây Mỗ", "Phường Xuân Phương", "Phường Đại Mỗ"],
+    
+    "Hà Đông": ["Phường Dương Nội", "Phường Hà Cầu", "Phường Kiến Hưng", "Phường La Khê", 
+                "Phường Mộ Lao", "Phường Nguyễn Trãi", "Phường Phú La", "Phường Phú Lãm", 
+                "Phường Phú Lương", "Phường Phú Thịnh", "Phường Phúc La", "Phường Quang Trung", 
+                "Phường Vạn Phúc", "Phường Văn Quán", "Phường Yên Nghĩa", "Phường Đồng Mai"],
+    
+    # CÁC HUYỆN VÀ THỊ XÃ
+    "Đông Anh": ["Thị trấn Đông Anh", "Xã Bắc Hồng", "Xã Dục Tú", "Xã Hải Bối", "Xã Kim Chung", 
+                 "Xã Kim Nỗ", "Xã Liên Hà", "Xã Mai Lâm", "Xã Nam Hồng", "Xã Nguyên Khê", 
+                 "Xã Tiên Dương", "Xã Uy Nỗ", "Xã Vân Nội", "Xã Võng La", "Xã Xuân Giang", 
+                 "Xã Xuân Nộn", "Xã Yên Thường", "Xã Đại Mạch", "Xã Đông Hội"],
+    
+    "Gia Lâm": ["Thị trấn Trâu Quỳ", "Thị trấn Yên Viên", "Xã Bát Tràng", "Xã Cổ Bi", "Xã Cự Khối", 
+                "Xã Đa Tốn", "Xã Kiêu Kỵ", "Xã Ninh Hiệp", "Xã Phú Thị", "Xã Phù Đổng", 
+                "Xã Trung Mầu", "Xã Yên Viên", "Xã Đông Dư", "Xã Đặng Xá", "Xã Đình Xuyên"],
+    
+    "Hoài Đức": ["Thị trấn Trạm Trôi", "Xã An Khánh", "Xã An Thượng", "Xã Cát Quế", "Xã Di Trạch", 
+                  "Xã Dương Liễu", "Xã Lại Yên", "Xã La Phù", "Xã Song Phương", "Xã Sơn Đồng", 
+                  "Xã Tiền Yên", "Xã Vân Canh", "Xã Vân Côn", "Xã Yên Sở", "Xã Đông La", "Xã Đức Thượng"],
+    
+    "Thanh Trì": ["Thị trấn Văn Điển", "Xã Duyên Hà", "Xã Duyên Thái", "Xã Hữu Hoà", "Xã Khánh Hà", 
+                  "Xã Liên Ninh", "Xã Ngọc Hồi", "Xã Ngũ Hiệp", "Xã Tả Thanh Oai", "Xã Tam Hiệp", 
+                  "Xã Tân Triều", "Xã Tứ Hiệp", "Xã Vĩnh Quỳnh", "Xã Văn Bình", "Xã Yên Mỹ", 
+                  "Xã Thanh Liệt"], # (Loại trừ các phường đã xếp vào Quận khác)
+    
+    "Thạch Thất": ["Thị trấn Liên Quan", "Xã Bình Phú", "Xã Bình Yên", "Xã Cẩm Quan", "Xã Cổ Đông", 
+                   "Xã Hạ Bằng", "Xã Hữu Bằng", "Xã Hương Ngải", "Xã Kim Quan", "Xã Lại Thượng", 
+                   "Xã Phú Kim", "Xã Phú Mãn", "Xã Phùng Xá", "Xã Tân Xã", "Xã Thạch Hoà", 
+                   "Xã Tiên Xuân", "Xã Yên Bình", "Xã Yên Trung", "Xã Canh Nậu", "Xã Đồng Trúc"],
+    
+    "Sóc Sơn": ["Thị trấn Sóc Sơn", "Xã Bắc Sơn", "Xã Hiền Ninh", "Xã Kim Lũ", "Xã Mai Đình", 
+                "Xã Minh Phú", "Xã Minh Trí", "Xã Nam Sơn", "Xã Phù Linh", "Xã Phù Lỗ", 
+                "Xã Quang Tiến", "Xã Tân Dân", "Xã Thanh Xuân", "Xã Tiên Dược", "Xã Trung Giã", 
+                "Xã Việt Long", "Xã Xuân Giang", "Xã Xuân Thu"], # (Loại trừ các phường/xã đã xếp vào Quận khác)
+
+    "Thường Tín": ["Thị trấn Thường Tín", "Xã Hà Hồi", "Xã Hiền Giang", "Xã Hòa Bình", "Xã Hồng Vân", 
+                   "Xã Khánh Hà", "Xã Lê Lợi", "Xã Liên Phương", "Xã Minh Cường", "Xã Nghiêm Xuyên", 
+                   "Xã Nhị Khê", "Xã Ninh Sở", "Xã Quất Động", "Xã Thắng Lợi", "Xã Thống Nhất", 
+                   "Xã Tiền Phong", "Xã Tô Hiệu", "Xã Tự Nhiên", "Xã Vạn Điểm", "Xã Văn Bình", "Xã Văn Phú"],
+
+    "Chương Mỹ": ["Thị trấn Chúc Sơn", "Thị trấn Xuân Mai", "Xã Hợp Thanh", "Xã Nam Phương Tiến", "Xã Phụng Châu", 
+                  "Xã Thủy Xuân Tiên", "Xã Đông Phương Yên", "Xã Trung Hòa", "Xã Văn Võ", "Xã Đồng Lạc"],
+    
+    "Đan Phượng": ["Thị trấn Phùng", "Xã Đan Phượng", "Xã Đồng Tháp", "Xã Hạ Mỗ", "Xã Hồng Hà", 
+                   "Xã Liên Hà", "Xã Liên Hồng", "Xã Phương Đình", "Xã Song Phượng", "Xã Thọ An", 
+                   "Xã Thọ Xuân", "Xã Thượng Mỗ", "Xã Trung Châu"],
+    
+    "Phú Xuyên": ["Thị trấn Phú Xuyên", "Xã Bạch Hạ", "Xã Châu Can", "Xã Chuyên Mỹ", "Xã Đại Thắng", 
+                  "Xã Hồng Thái", "Xã Khai Thái", "Xã Minh Tân", "Xã Nam Phong", "Xã Nam Triều", 
+                  "Xã Phú Châu", "Xã Phú Túc", "Xã Phúc Tiến", "Xã Quang Lãng", "Xã Quang Trung", 
+                  "Xã Sơn Hà", "Xã Tân Dân", "Xã Tri Thủy", "Xã Tri Trung", "Xã Văn Hoàng", "Xã Vân Từ"],
+    
+    "Quốc Oai": ["Thị trấn Quốc Oai", "Xã Cấn Hữu", "Xã Cộng Hòa", "Xã Đại Thành", "Xã Đồng Quang", 
+                "Xã Hòa Thạch", "Xã Liệp Tuyết", "Xã Ngọc Liệp", "Xã Ngọc Mỹ", "Xã Phú Cát", 
+                "Xã Phú Mãn", "Xã Phượng Cách", "Xã Sài Sơn", "Xã Tuyết Nghĩa", "Xã Yên Sơn"],
+    
+    "Thị xã Sơn Tây": ["Phường Lê Lợi", "Phường Ngô Quyền", "Phường Phú Thịnh", "Phường Quang Trung", 
+                       "Phường Sơn Lộc", "Phường Trung Hưng", "Phường Viên Sơn", "Phường Xuân Khanh", 
+                       "Xã Cổ Đông", "Xã Đường Lâm", "Xã Kim Sơn", "Xã Sơn Đông", "Xã Thanh Mỹ", "Xã Xuân Sơn"],
+    
+    "Mê Linh": ["Thị trấn Quang Minh", "Xã Chu Phan", "Xã Đại Thịnh", "Xã Hoàng Kim", "Xã Kim Hoa", 
+                "Xã Liên Mạc", "Xã Mê Linh", "Xã Tam Đồng", "Xã Thạch Đà", "Xã Tiền Phong", 
+                "Xã Tráng Việt", "Xã Tự Lập", "Xã Văn Khê", "Xã Vạn Yên", "Xã Thanh Lâm"],
+    
+    "Phúc Thọ": ["Thị trấn Phúc Thọ", "Xã Cẩm Đình", "Xã Hát Môn", "Xã Hiệp Thuận", "Xã Liên Hiệp", 
+                 "Xã Long Xuyên", "Xã Ngọc Tảo", "Xã Phụng Thượng", "Xã Sen Chiểu", "Xã Tam Thuấn", 
+                 "Xã Thanh Đa", "Xã Thượng Cốc", "Xã Tích Giang", "Xã Vân Hà", "Xã Vân Nam", "Xã Võng Xuyên", "Xã Xuân Phú"],
+    
+    "Mỹ Đức": ["Thị trấn Đại Nghĩa", "Xã An Mỹ", "Xã An Phú", "Xã Bột Xuyên", "Xã Đại Hưng", 
+               "Xã Đồng Tâm", "Xã Hồng Sơn", "Xã Hợp Thanh", "Xã Hợp Tiến", "Xã Hùng Tiến", 
+               "Xã Hương Sơn", "Xã Lê Thanh", "Xã Mỹ Thành", "Xã Phù Lưu Tế", "Xã Phúc Lâm", 
+               "Xã Thượng Lâm", "Xã Tuy Lai", "Xã Vạn Kim"],
+    
+    "Thanh Oai": ["Thị trấn Kim Bài", "Xã Bích Hòa", "Xã Cự Khê", "Xã Dân Hòa", "Xã Hồng Dương", 
+                  "Xã Kim An", "Xã Kim Thư", "Xã Liên Châu", "Xã Mỹ Hưng", "Xã Phương Trung", 
+                  "Xã Tam Hưng", "Xã Thanh Cao", "Xã Thanh Mai", "Xã Thanh Văn", "Xã Xuân Dương"],
+    
+    "Unknown": ["Unknown"] # Giữ lại Unknown nếu bạn muốn hiển thị
+}
+
+# Loại hình nhà (Prefix: 'Loại hình nhà ở_')
+# Chỉ trích xuất nếu model_columns đã được load thành công
+if model_columns is not None:
     house_types = sorted([c.replace('Loại hình nhà ở_', '') for c in model_columns if c.startswith('Loại hình nhà ở_')])
     
     # Pháp lý (Prefix: 'Giấy tờ pháp lý_')
     legal_types = sorted([c.replace('Giấy tờ pháp lý_', '') for c in model_columns if c.startswith('Giấy tờ pháp lý_')])
+else:
+    # Giá trị mặc định nếu load model thất bại
+    house_types = ["Nhà mặt phố, mặt tiền", "Nhà ngõ, hẻm", "Nhà phố liền kề", "Unknown"]
+    legal_types = ["Đã có sổ", "Đang chờ sổ", "Unknown"]
 
-    # 3. FORM NHẬP LIỆU
-    with st.form("prediction_form"):
-        st.subheader("📋 Thông tin Bất động sản")
-        
-        # Hàng 1: Thông số kích thước
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            dien_tich = st.number_input("Diện tích (m²)", min_value=10.0, max_value=10000.0, value=50.0, step=1.0)
-            chieu_rong = st.number_input("Chiều Rộng / Mặt tiền (m)", min_value=1.0, max_value=100.0, value=5.0, step=0.5)
-        with c2:
-            chieu_dai = st.number_input("Chiều Dài (m)", min_value=1.0, max_value=200.0, value=10.0, step=0.5)
-            so_tang = st.number_input("Số tầng", min_value=1, max_value=100, value=3, step=1)
-        with c3:
-            so_phong = st.number_input("Số phòng ngủ", min_value=1, max_value=50, value=3, step=1)
-            # Ngày tháng mặc định là hiện tại
-            now = datetime.now()
-            nam_gd = st.number_input("Năm giao dịch", value=now.year)
-            thang_gd = st.number_input("Tháng giao dịch", min_value=1, max_value=12, value=now.month)
+# 3. FORM NHẬP LIỆU
+with st.form("prediction_form"):
+    st.subheader("📋 Thông tin Bất động sản")
+    
+    # Hàng 1: Thông số kích thước
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        dien_tich = st.number_input("Diện tích (m²)", min_value=10.0, max_value=10000.0, value=50.0, step=1.0)
+        chieu_rong = st.number_input("Chiều Rộng / Mặt tiền (m)", min_value=1.0, max_value=100.0, value=5.0, step=0.5)
+    with c2:
+        chieu_dai = st.number_input("Chiều Dài (m)", min_value=1.0, max_value=200.0, value=10.0, step=0.5)
+        so_tang = st.number_input("Số tầng", min_value=1, max_value=100, value=3, step=1)
+    with c3:
+        so_phong = st.number_input("Số phòng ngủ", min_value=1, max_value=50, value=3, step=1)
+        # Ngày tháng mặc định là hiện tại
+        now = datetime.now()
+        nam_gd = st.number_input("Năm giao dịch", value=now.year)
+        thang_gd = st.number_input("Tháng giao dịch", min_value=1, max_value=12, value=now.month)
 
-        st.markdown("---")
-        st.subheader("📍 Vị trí & Phân loại")
-        
-        # Hàng 2: Vị trí và Loại hình
-        # Hàng 2: Vị trí và Loại hình
+    st.markdown("---")
+    st.subheader("📍 Vị trí & Phân loại")
+    
+    # Hàng 2: Vị trí và Loại hình (Đã di chuyển vào trong form)
     c4, c5 = st.columns(2)
     with c4:
         # 1. Chọn Quận
         selected_district = st.selectbox("Quận / Huyện", districts)
         
-        # 2. Lọc danh sách Phường/Xã (Đảm bảo đã thêm logic này)
-        # filtered_wards = wards_map.get(selected_district, ["Không tìm thấy Phường/Xã"])
+        # 2. Lọc danh sách Phường/Xã
+        filtered_wards = wards_map.get(selected_district, ["Không tìm thấy Phường/Xã"])
         
-        # 3. Sử dụng KEY để đảm bảo trạng thái được đồng bộ chính xác
+        # 3. Sử dụng KEY cho checkbox
         use_ward = st.checkbox("Chọn Phường/Xã cụ thể?", value=False, key='ward_checkbox')
         
-        # Kiểm tra trạng thái bằng session_state (tùy chọn)
-        st.write(f"Trạng thái ô kiểm: {st.session_state.ward_checkbox}")
-        filtered_wards = wards_map.get(selected_district, ["Không tìm thấy Phường/Xã"])
+        # st.write(f"Trạng thái ô kiểm: {st.session_state.ward_checkbox}") # Giữ lại để debug
+        
         # 4. Truyền giá trị từ session_state vào tham số disabled
         selected_ward = st.selectbox(
             "Phường / Xã", 
-            filtered_wards, # Sử dụng filtered_wards
+            filtered_wards, 
             disabled= not st.session_state.ward_checkbox # Dùng giá trị từ session_state
         )
+    
+    with c5:
+        # Chọn Loại hình nhà ở
+        selected_type = st.selectbox("Loại hình nhà ở", house_types)
+        
+        # Chọn Giấy tờ pháp lý
+        selected_legal = st.selectbox("Giấy tờ pháp lý", legal_types)
+        
+    # --- KHẮC PHỤC LỖI NAMERROR: ĐỊNH NGHĨA NÚT SUBMIT TRONG FORM ---
+    submit_btn = st.form_submit_button("💰 Dự đoán Giá Nhà", type="primary")
 
-    # 4. XỬ LÝ KHI ẤN NÚT DỰ BÁO
-    if submit_btn:
-        # A. Tạo DataFrame chứa đúng các cột mà Model yêu cầu, ban đầu gán bằng 0
+# 4. XỬ LÝ KHI ẤN NÚT DỰ BÁO (Đã sửa lỗi NameError)
+if submit_btn:
+    if model is None:
+        st.error("Model không được load. Không thể thực hiện dự đoán.")
+        st.stop()
+        
+    # A. Tạo DataFrame chứa đúng các cột mà Model yêu cầu, ban đầu gán bằng 0
+    # Đảm bảo model_columns đã được load
+    if model_columns is not None:
         input_data = pd.DataFrame(index=[0], columns=model_columns).fillna(0)
+    else:
+        st.error("Không tìm thấy danh sách cột của Model. Không thể dự đoán.")
+        st.stop()
 
-        # B. Gán giá trị số (Numeric)
-        # Lưu ý: Tên cột phải khớp CHÍNH XÁC với file model_columns.pkl (Dựa trên log bạn cung cấp)
+    # B. Gán giá trị số (Numeric)
+    try:
+        input_data['Diện tích'] = dien_tich
+        input_data['Dài'] = chieu_dai
+        input_data['Rộng'] = chieu_rong
+        input_data['Số tầng'] = so_tang
+        input_data['Số phòng ngủ'] = so_phong
+        input_data['Năm'] = nam_gd
+        input_data['Tháng'] = thang_gd
+    except KeyError as e:
+        st.error(f"Lỗi tên cột số liệu: {e}. Hãy kiểm tra lại tên cột trong dữ liệu train.")
+        st.stop()
+
+    # C. Gán giá trị One-Hot (Categorical)
+    def set_one_hot(prefix, value):
+        col_name = f"{prefix}{value}"
+        if col_name in input_data.columns:
+            input_data[col_name] = 1
+    
+    # Kích hoạt các cột tương ứng
+    # Lưu ý: Các biến selected_type, selected_legal đã được định nghĩa
+    set_one_hot('Quận_', selected_district)
+    set_one_hot('Loại hình nhà ở_', selected_type)
+    set_one_hot('Giấy tờ pháp lý_', selected_legal)
+    
+    if st.session_state.ward_checkbox: # Sử dụng trạng thái đã được đồng bộ
+        set_one_hot('Huyện_', selected_ward)
+
+    # D. Thực hiện dự đoán
+    with st.spinner("Đang tính toán..."):
         try:
-            input_data['Diện tích'] = dien_tich
-            input_data['Dài'] = chieu_dai
-            input_data['Rộng'] = chieu_rong
-            input_data['Số tầng'] = so_tang
-            input_data['Số phòng ngủ'] = so_phong
-            input_data['Năm'] = nam_gd
-            input_data['Tháng'] = thang_gd
-        except KeyError as e:
-            st.error(f"Lỗi tên cột số liệu: {e}. Hãy kiểm tra lại tên cột trong dữ liệu train.")
-            st.stop()
+            predicted_price = model.predict(input_data)[0]
+            
+            # Hiển thị kết quả đẹp mắt
+            st.success("✅ Dự báo thành công!")
+            
+            # Cần xử lý giá trị dự đoán nếu nó quá nhỏ (do lỗi logarit hoặc model chưa tốt)
+            if predicted_price < 0:
+                predicted_price = 0.1 # Giả sử mức giá tối thiểu
+                st.warning("Giá trị dự đoán âm. Đã điều chỉnh về 0.1 Tỷ.")
+            
+            metric_col1, metric_col2 = st.columns([2, 1])
+            with metric_col1:
+                st.markdown(f"""
+                <div style="background-color: #e6fffa; padding: 20px; border-radius: 10px; border: 2px solid #38b2ac; text-align: center;">
+                    <h3 style="color: #2c7a7b; margin:0;">GIÁ TRỊ ƯỚC TÍNH</h3>
+                    <h1 style="color: #285e61; font-size: 48px; margin: 10px 0;">{predicted_price:,.2f} Tỷ</h1>
+                    <p style="color: #4a5568;">~ {(predicted_price * 1_000_000_000 / dien_tich):,.0f} VNĐ / m²</p>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            with metric_col2:
+                st.info("Thông tin đầu vào:")
+                st.write(f"- **Diện tích:** {dien_tich} m²")
+                st.write(f"- **Vị trí:** {selected_district} {'/ ' + selected_ward if st.session_state.ward_checkbox else ''}")
+                st.write(f"- **Loại:** {selected_type}")
+                st.write(f"- **Pháp lý:** {selected_legal}")
 
-        # C. Gán giá trị One-Hot (Categorical)
-        # Hàm helper để set giá trị 1 cho cột One-hot
-        def set_one_hot(prefix, value):
-            col_name = f"{prefix}{value}"
-            if col_name in input_data.columns:
-                input_data[col_name] = 1
-        
-        # Kích hoạt các cột tương ứng
-        set_one_hot('Quận_', selected_district)
-        set_one_hot('Loại hình nhà ở_', selected_type)
-        set_one_hot('Giấy tờ pháp lý_', selected_legal)
-        
-        if use_ward:
-            set_one_hot('Huyện_', selected_ward)
+        except Exception as e:
+            st.error(f"Đã xảy ra lỗi trong quá trình tính toán: {str(e)}")
+            with st.expander("Chi tiết lỗi (Dành cho Dev)"):
+                st.code(e)
+                # Hiển thị DataFrame đầu vào để dễ debug
+                st.write("DataFrame đầu vào (Input Data):")
+                st.dataframe(input_data)
 
-        # D. Thực hiện dự đoán
-        with st.spinner("Đang tính toán..."):
-            try:
-                predicted_price = model.predict(input_data)[0]
-                
-                # Hiển thị kết quả đẹp mắt
-                st.success("✅ Dự báo thành công!")
-                
-                metric_col1, metric_col2 = st.columns([2, 1])
-                with metric_col1:
-                    st.markdown(f"""
-                    <div style="background-color: #e6fffa; padding: 20px; border-radius: 10px; border: 2px solid #38b2ac; text-align: center;">
-                        <h3 style="color: #2c7a7b; margin:0;">GIÁ TRỊ ƯỚC TÍNH</h3>
-                        <h1 style="color: #285e61; font-size: 48px; margin: 10px 0;">{predicted_price:,.2f} Tỷ</h1>
-                        <p style="color: #4a5568;">~ {(predicted_price * 1_000_000_000 / dien_tich):,.0f} VNĐ / m²</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                
-                with metric_col2:
-                    st.info("Thông tin đầu vào:")
-                    st.write(f"- **Diện tích:** {dien_tich} m²")
-                    st.write(f"- **Vị trí:** {selected_district}")
-                    st.write(f"- **Loại:** {selected_type}")
-
-            except Exception as e:
-                st.error(f"Đã xảy ra lỗi trong quá trình tính toán: {str(e)}")
-                # Mở rộng để debug nếu cần
-                with st.expander("Chi tiết lỗi (Dành cho Dev)"):
-                    st.write(e)
-                    st.write("Danh sách cột đầu vào:", input_data.columns.tolist())

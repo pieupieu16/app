@@ -458,18 +458,19 @@ with st.form("prediction_form"):
             "Chọn Phường/Xã cụ thể?", 
             value=False, 
             key='ward_checkbox', 
-            on_change=toggle_ward_state # Gọi hàm chỉ cập nhật trạng thái
+            # on_change=toggle_ward_state # Gọi hàm chỉ cập nhật trạng thái
         )
         
         # Kiểm tra trạng thái
         st.write(f"Trạng thái ô kiểm: {st.session_state.ward_enabled}")
         
-        # 4. Chọn Phường/Xã (Thêm KEY)
+        # 4. Chọn Phường/Xã
         selected_ward = st.selectbox(
             "Phường / Xã", 
             filtered_wards, 
-            key='ward_key', # Key để truy cập giá trị sau submit
-            disabled= not st.session_state.ward_enabled 
+            key='ward_key', 
+            # SỬ DỤNG TRẠNG THÁI TRỰC TIẾP TỪ CHECKBOX (Sau khi Form được gửi)
+            disabled= not st.session_state.ward_checkbox 
         )
     
     with c5:

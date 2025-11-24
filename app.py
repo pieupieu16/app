@@ -104,19 +104,30 @@ if selected == "Trang chủ & Tableau":
         avg_price = df[COL_PRICE].mean()
         max_price = df[COL_PRICE].max()
         
-        if COL_AREA in df.columns:
-            valid_area = df[df[COL_AREA] > 0].copy()
-            valid_area['Price_per_m2'] = valid_area[COL_PRICE] / valid_area[COL_AREA]
-            # Handle trường hợp groupby trả về rỗng
-            try:
-                cheapest_district = valid_area.groupby(COL_DISTRICT)['Price_per_m2'].mean().idxmin()
-            except:
-                cheapest_district = "N/A"
+        if COL_AREA in df.columns and COL_DISTRICT in df.columns:
+            # 1. Lọc dữ liệu hợp lệ (Diện tích > 0)
+            valid_area = df[(df[COL_AREA] > 0) & (df[COL_PRICE].notna())].copy()
+            
+            # 2. KIỂM TRA ĐẢM BẢO CÓ DỮ LIỆU ĐỂ XỬ LÝ
+            if not valid_area.empty:
+                valid_area['Price_per_m2'] = valid_area[COL_PRICE] / valid_area[COL_AREA]
+                
+                try:
+                    # Tính giá trung bình trên mỗi mét vuông theo Quận/Huyện
+                    grouped_prices = valid_area.groupby(COL_DISTRICT)['Price_per_m2'].mean()
+                    
+                    if not grouped_prices.empty:
+                        cheapest_district = grouped_prices.idxmin()
+                    else:
+                        cheapest_district = "N/A (Không tính được nhóm)"
+                except Exception as e:
+                    cheapest_district = "Lỗi tính toán" # Hoặc f"Lỗi: {e}" để debug
+            else:
+                cheapest_district = "N/A (Dữ liệu Diện tích/Giá không hợp lệ)"
         else:
-            cheapest_district = "N/A"
-
+            cheapest_district = "N/A (Thiếu cột Diện tích hoặc Quận/Huyện)"
         c1.metric("Số nhà đang bán", f"{num_houses:,}")
-        c2.metric("Giá trung bình", f"{avg_price:,.2f} Tỷ") # Giả sử đơn vị là Tỷ
+        c2.metric("Giá trung bình", f"{avg_price:,.2f/1000} Tỷ") # Giả sử đơn vị là Tỷ
         c3.metric("Khu vực rẻ nhất (m²)", f"{cheapest_district}")
         c4.metric("Căn đắt nhất", f"{max_price:,.2f} Tỷ")
     else:

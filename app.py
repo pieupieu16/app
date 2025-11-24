@@ -220,6 +220,20 @@ elif selected == "Phân tích Trực quan":
             fig_corr = px.imshow(corr_matrix, text_auto=True, aspect="auto", color_continuous_scale='RdBu_r')
             st.plotly_chart(fig_corr, use_container_width=True)
 
+# Đảm bảo nó được định nghĩa ở phạm vi toàn cục (global scope)
+submit_btn = False 
+
+# Khối code logic và hàm callback (cần thêm vào đầu chương trình, trước khối elif)
+# =========================================================
+# KHỞI TẠO VÀ CALLBACK CHO CHECKBOX (GIẢI PHÁP VỀ LỖI ĐỒNG BỘ)
+# =========================================================
+if 'ward_enabled' not in st.session_state:
+    st.session_state.ward_enabled = False
+
+def toggle_ward_state():
+    # Gán giá trị của checkbox vào biến ward_enabled trong session state
+    st.session_state.ward_enabled = st.session_state.ward_checkbox
+
 # =========================================================
 # MODULE 4: DỰ BÁO GIÁ (UPDATE CHO MODEL MỚI)
 # =========================================================
@@ -437,10 +451,7 @@ with st.form("prediction_form"):
 
 # Hàm callback để thay đổi trạng thái
 def toggle_ward_state():
-    # Gán giá trị của checkbox vào biến ward_enabled trong session state
-    st.session_state.ward_enabled = st.session_state.ward_checkbox
-    if 'ward_enabled' not in st.session_state:
-        st.session_state.ward_enabled = False
+    #
     
     # Hàng 2: Vị trí và Loại hình (Đã di chuyển vào trong form)
     # Hàng 2: Vị trí và Loại hình (Nằm trong khối with st.form)

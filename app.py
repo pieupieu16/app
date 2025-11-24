@@ -205,7 +205,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
     with col_search:
         search_term = st.text_input("Tìm kiếm (Quận/Loại nhà):")
     with col_filter:
-        price_range = st.slider("Khoảng giá (Triệu)", 0.0, 100.0, (0.0, 10000000.0))
+        price_range = st.slider("Khoảng giá (Triệu)", 0.0, 100.0, (0.0, 1000000.0))
     
     filtered_df = df.copy()
     if not filtered_df.empty:

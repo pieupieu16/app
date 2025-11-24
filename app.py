@@ -231,9 +231,8 @@ if 'ward_enabled' not in st.session_state:
     st.session_state.ward_enabled = False
 
 def toggle_ward_state():
-    # Gán giá trị của checkbox vào biến ward_enabled trong session state
+    # Gán giá trị của checkbox (key='ward_checkbox') vào biến ward_enabled trong session state
     st.session_state.ward_enabled = st.session_state.ward_checkbox
-
 # =========================================================
 # MODULE 4: DỰ BÁO GIÁ (UPDATE CHO MODEL MỚI)
 # =========================================================
@@ -428,111 +427,96 @@ else:
 with st.form("prediction_form"):
     st.subheader("📋 Thông tin Bất động sản")
     
-    # Hàng 1: Thông số kích thước
+    # Hàng 1: Thông số kích thước (Cần thêm KEY cho tất cả các trường số này)
     c1, c2, c3 = st.columns(3)
     with c1:
-        dien_tich = st.number_input("Diện tích (m²)", min_value=10.0, max_value=10000.0, value=50.0, step=1.0)
-        chieu_rong = st.number_input("Chiều Rộng / Mặt tiền (m)", min_value=1.0, max_value=100.0, value=5.0, step=0.5)
+        dien_tich = st.number_input("Diện tích (m²)", min_value=10.0, max_value=10000.0, value=50.0, step=1.0, key='dien_tich_key')
+        chieu_rong = st.number_input("Chiều Rộng / Mặt tiền (m)", min_value=1.0, max_value=100.0, value=5.0, step=0.5, key='rong_key')
     with c2:
-        chieu_dai = st.number_input("Chiều Dài (m)", min_value=1.0, max_value=200.0, value=10.0, step=0.5)
-        so_tang = st.number_input("Số tầng", min_value=1, max_value=100, value=3, step=1)
+        chieu_dai = st.number_input("Chiều Dài (m)", min_value=1.0, max_value=200.0, value=10.0, step=0.5, key='dai_key')
+        so_tang = st.number_input("Số tầng", min_value=1, max_value=100, value=3, step=1, key='tang_key')
     with c3:
-        so_phong = st.number_input("Số phòng ngủ", min_value=1, max_value=50, value=3, step=1)
-        # Ngày tháng mặc định là hiện tại
+        so_phong = st.number_input("Số phòng ngủ", min_value=1, max_value=50, value=3, step=1, key='phong_ngu_key')
         now = datetime.now()
-        nam_gd = st.number_input("Năm giao dịch", value=now.year)
-        thang_gd = st.number_input("Tháng giao dịch", min_value=1, max_value=12, value=now.month)
+        nam_gd = st.number_input("Năm giao dịch", value=now.year, key='nam_gd_key')
+        thang_gd = st.number_input("Tháng giao dịch", min_value=1, max_value=12, value=now.month, key='thang_gd_key')
 
     st.markdown("---")
     st.subheader("📍 Vị trí & Phân loại")
-    # Khởi tạo trạng thái ban đầu nếu chưa có
-    if 'ward_enabled' not in st.session_state:
-        st.session_state.ward_enabled = False
 
-# Hàm callback để thay đổi trạng thái
-def toggle_ward_state():
-    #
-    
-    # Hàng 2: Vị trí và Loại hình (Đã di chuyển vào trong form)
-    # Hàng 2: Vị trí và Loại hình (Nằm trong khối with st.form)
+    # Hàng 2: Vị trí và Loại hình (TẤT CẢ NẰM TRONG FORM)
     c4, c5 = st.columns(2)
     with c4:
-        # 1. Chọn Quận
-        selected_district = st.selectbox("Quận / Huyện", districts)
+        # 1. Chọn Quận (Thêm KEY)
+        selected_district = st.selectbox("Quận / Huyện", districts, key='district_key')
         
         # 2. Lọc danh sách Phường/Xã
-        filtered_wards = wards_map.get(selected_district, ["Không tìm thấy Phường/Xã"])
+        filtered_wards = wards_map.get(st.session_state.district_key, ["Không tìm thấy Phường/Xã"])
         
-        # 3. Sử dụng KEY, ON_CHANGE để buộc cập nhật trạng thái (RẤT QUAN TRỌNG)
+        # 3. Checkbox với Callback (KHÔNG BỊ LỖI PHẠM VI NỮA)
         st.checkbox(
             "Chọn Phường/Xã cụ thể?", 
             value=False, 
             key='ward_checkbox', 
-            on_change=toggle_ward_state # GỌI HÀM KHI GIÁ TRỊ THAY ĐỔI
+            on_change=toggle_ward_state # Gọi hàm chỉ cập nhật trạng thái
         )
         
-        # Dùng biến mới đã được cập nhật bởi hàm callback để kiểm tra trạng thái
+        # Kiểm tra trạng thái
         st.write(f"Trạng thái ô kiểm: {st.session_state.ward_enabled}")
         
-        # 4. Sử dụng trạng thái đã được buộc cập nhật để điều khiển disabled
+        # 4. Chọn Phường/Xã (Thêm KEY)
         selected_ward = st.selectbox(
             "Phường / Xã", 
             filtered_wards, 
-            # SỬ DỤNG session_state.ward_enabled
+            key='ward_key', # Key để truy cập giá trị sau submit
             disabled= not st.session_state.ward_enabled 
         )
     
     with c5:
-        # Chọn Loại hình nhà ở
-        selected_type = st.selectbox("Loại hình nhà ở", house_types)
+        # Chọn Loại hình nhà ở (Thêm KEY)
+        selected_type = st.selectbox("Loại hình nhà ở", house_types, key='type_key')
         
-        # Chọn Giấy tờ pháp lý
-        selected_legal = st.selectbox("Giấy tờ pháp lý", legal_types)
+        # Chọn Giấy tờ pháp lý (Thêm KEY)
+        selected_legal = st.selectbox("Giấy tờ pháp lý", legal_types, key='legal_key')
         
-    # --- KHẮC PHỤC LỖI NAMERROR: ĐỊNH NGHĨA NÚT SUBMIT TRONG FORM ---
+    # --- NÚT SUBMIT BẮT BUỘC ---
+    # Gán submit_btn trong form
     submit_btn = st.form_submit_button("💰 Dự đoán Giá Nhà", type="primary")
 
-# 4. XỬ LÝ KHI ẤN NÚT DỰ BÁO (Đã sửa lỗi NameError)
+# 4. XỬ LÝ KHI ẤN NÚT DỰ BÁO (Sử dụng st.session_state để truy cập các giá trị)
 if submit_btn:
-    if model is None:
-        st.error("Model không được load. Không thể thực hiện dự đoán.")
-        st.stop()
-        
-    # A. Tạo DataFrame chứa đúng các cột mà Model yêu cầu, ban đầu gán bằng 0
-    # Đảm bảo model_columns đã được load
+    # A. Tạo DataFrame...
+    # ...
     if model_columns is not None:
         input_data = pd.DataFrame(index=[0], columns=model_columns).fillna(0)
     else:
         st.error("Không tìm thấy danh sách cột của Model. Không thể dự đoán.")
         st.stop()
-
-    # B. Gán giá trị số (Numeric)
+    # B. Gán giá trị số (TẤT CẢ truy cập qua st.session_state)
     try:
-        input_data['Diện tích'] = dien_tich
-        input_data['Dài'] = chieu_dai
-        input_data['Rộng'] = chieu_rong
-        input_data['Số tầng'] = so_tang
-        input_data['Số phòng ngủ'] = so_phong
-        input_data['Năm'] = nam_gd
-        input_data['Tháng'] = thang_gd
+        input_data['Diện tích'] = st.session_state.dien_tich_key
+        input_data['Dài'] = st.session_state.dai_key
+        input_data['Rộng'] = st.session_state.rong_key
+        input_data['Số tầng'] = st.session_state.tang_key
+        input_data['Số phòng ngủ'] = st.session_state.phong_ngu_key
+        input_data['Năm'] = st.session_state.nam_gd_key
+        input_data['Tháng'] = st.session_state.thang_gd_key
     except KeyError as e:
         st.error(f"Lỗi tên cột số liệu: {e}. Hãy kiểm tra lại tên cột trong dữ liệu train.")
         st.stop()
 
-    # C. Gán giá trị One-Hot (Categorical)
+    # C. Gán giá trị One-Hot (TẤT CẢ truy cập qua st.session_state)
     def set_one_hot(prefix, value):
         col_name = f"{prefix}{value}"
         if col_name in input_data.columns:
             input_data[col_name] = 1
     
-    # Kích hoạt các cột tương ứng
-    # Lưu ý: Các biến selected_type, selected_legal đã được định nghĩa
-    set_one_hot('Quận_', selected_district)
-    set_one_hot('Loại hình nhà ở_', selected_type)
-    set_one_hot('Giấy tờ pháp lý_', selected_legal)
+    set_one_hot('Quận_', st.session_state.district_key)
+    set_one_hot('Loại hình nhà ở_', st.session_state.type_key)
+    set_one_hot('Giấy tờ pháp lý_', st.session_state.legal_key)
     
-    if st.session_state.ward_checkbox: # Sử dụng trạng thái đã được đồng bộ
-        set_one_hot('Huyện_', selected_ward)
+    if st.session_state.ward_enabled: # Sử dụng trạng thái đã được đồng bộ
+        set_one_hot('Huyện_', st.session_state.ward_key)
 
     # D. Thực hiện dự đoán
     with st.spinner("Đang tính toán..."):

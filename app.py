@@ -454,15 +454,15 @@ with st.form("prediction_form"):
         filtered_wards = wards_map.get(st.session_state.district_key, ["Không tìm thấy Phường/Xã"])
         
         # 3. Checkbox với Callback (KHÔNG BỊ LỖI PHẠM VI NỮA)
-        st.checkbox(
-            "Chọn Phường/Xã cụ thể?", 
-            value=False, 
-            key='ward_checkbox', 
-            # on_change=toggle_ward_state # Gọi hàm chỉ cập nhật trạng thái
-        )
+        # st.checkbox(
+        #     "Chọn Phường/Xã cụ thể?", 
+        #     value=False, 
+        #     key='ward_checkbox', 
+        #     # on_change=toggle_ward_state # Gọi hàm chỉ cập nhật trạng thái
+        # )
         
         # Kiểm tra trạng thái
-        st.write(f"Trạng thái ô kiểm: {st.session_state.ward_enabled}")
+        # st.write(f"Trạng thái ô kiểm: {st.session_state.ward_enabled}")
         
         # 4. Chọn Phường/Xã
         selected_ward = st.selectbox(
@@ -470,7 +470,7 @@ with st.form("prediction_form"):
             filtered_wards, 
             key='ward_key', 
             # SỬ DỤNG TRẠNG THÁI TRỰC TIẾP TỪ CHECKBOX (Sau khi Form được gửi)
-            disabled= not st.session_state.ward_checkbox 
+            disabled=  st.session_state.ward_checkbox 
         )
     
     with c5:

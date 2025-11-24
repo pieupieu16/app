@@ -421,22 +421,27 @@ elif selected == "Dự báo Giá nhà":
         st.subheader("📍 Vị trí & Phân loại")
         
         # Hàng 2: Vị trí và Loại hình
-        c4, c5 = st.columns(2)
-        with c4:
-            # Chọn Quận
-            selected_district = st.selectbox("Quận / Huyện", districts)
-            
-            # Chọn Phường (Optional: Có thể lọc phường theo quận nếu có data mapping, ở đây show all)
-            use_ward = st.checkbox("Chọn Phường/Xã cụ thể?", value=False)
-            st.write(f"Trạng thái ô kiểm: {use_ward}")
-            selected_ward = st.selectbox("Phường / Xã", wards_map, disabled= not use_ward)
-            
-        with c5:
-            selected_type = st.selectbox("Loại hình nhà ở", house_types)
-            selected_legal = st.selectbox("Giấy tờ pháp lý", legal_types)
-
-        # Nút Submit
-        submit_btn = st.form_submit_button("🚀 DỰ BÁO GIÁ NGAY", use_container_width=True)
+        # Hàng 2: Vị trí và Loại hình
+    c4, c5 = st.columns(2)
+    with c4:
+        # 1. Chọn Quận
+        selected_district = st.selectbox("Quận / Huyện", districts)
+        
+        # 2. Lọc danh sách Phường/Xã (Đảm bảo đã thêm logic này)
+        # filtered_wards = wards_map.get(selected_district, ["Không tìm thấy Phường/Xã"])
+        
+        # 3. Sử dụng KEY để đảm bảo trạng thái được đồng bộ chính xác
+        use_ward = st.checkbox("Chọn Phường/Xã cụ thể?", value=False, key='ward_checkbox')
+        
+        # Kiểm tra trạng thái bằng session_state (tùy chọn)
+        st.write(f"Trạng thái ô kiểm: {st.session_state.ward_checkbox}")
+        filtered_wards = wards_map.get(selected_district, ["Không tìm thấy Phường/Xã"])
+        # 4. Truyền giá trị từ session_state vào tham số disabled
+        selected_ward = st.selectbox(
+            "Phường / Xã", 
+            filtered_wards, # Sử dụng filtered_wards
+            disabled= not st.session_state.ward_checkbox # Dùng giá trị từ session_state
+        )
 
     # 4. XỬ LÝ KHI ẤN NÚT DỰ BÁO
     if submit_btn:

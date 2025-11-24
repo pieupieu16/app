@@ -428,6 +428,7 @@ elif selected == "Dự báo Giá nhà":
             
             # Chọn Phường (Optional: Có thể lọc phường theo quận nếu có data mapping, ở đây show all)
             use_ward = st.checkbox("Chọn Phường/Xã cụ thể?", value=False)
+            st.write(f"Trạng thái ô kiểm: {use_ward}")
             selected_ward = st.selectbox("Phường / Xã", wards_map, disabled= not use_ward)
             
         with c5:

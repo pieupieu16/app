@@ -431,8 +431,19 @@ with st.form("prediction_form"):
 
     st.markdown("---")
     st.subheader("📍 Vị trí & Phân loại")
+    # Khởi tạo trạng thái ban đầu nếu chưa có
+    if 'ward_enabled' not in st.session_state:
+        st.session_state.ward_enabled = False
+
+# Hàm callback để thay đổi trạng thái
+def toggle_ward_state():
+    # Gán giá trị của checkbox vào biến ward_enabled trong session state
+    st.session_state.ward_enabled = st.session_state.ward_checkbox
+    if 'ward_enabled' not in st.session_state:
+        st.session_state.ward_enabled = False
     
     # Hàng 2: Vị trí và Loại hình (Đã di chuyển vào trong form)
+    # Hàng 2: Vị trí và Loại hình (Nằm trong khối with st.form)
     c4, c5 = st.columns(2)
     with c4:
         # 1. Chọn Quận
@@ -441,18 +452,23 @@ with st.form("prediction_form"):
         # 2. Lọc danh sách Phường/Xã
         filtered_wards = wards_map.get(selected_district, ["Không tìm thấy Phường/Xã"])
         
-        # 3. Sử dụng KEY cho checkbox (Rất quan trọng)
-        use_ward = st.checkbox("Chọn Phường/Xã cụ thể?", value=False, key='ward_checkbox')
+        # 3. Sử dụng KEY, ON_CHANGE để buộc cập nhật trạng thái (RẤT QUAN TRỌNG)
+        st.checkbox(
+            "Chọn Phường/Xã cụ thể?", 
+            value=False, 
+            key='ward_checkbox', 
+            on_change=toggle_ward_state # GỌI HÀM KHI GIÁ TRỊ THAY ĐỔI
+        )
         
-        # Dòng debug (có thể gây nhiễu, nên xóa hoặc dùng session_state)
-        # st.write(f"Trạng thái ô kiểm: {st.session_state.ward_checkbox}") 
+        # Dùng biến mới đã được cập nhật bởi hàm callback để kiểm tra trạng thái
+        st.write(f"Trạng thái ô kiểm: {st.session_state.ward_enabled}")
         
-        # 4. Sử dụng giá trị đã đồng bộ trong session_state để điều khiển disabled
+        # 4. Sử dụng trạng thái đã được buộc cập nhật để điều khiển disabled
         selected_ward = st.selectbox(
             "Phường / Xã", 
             filtered_wards, 
-            # Đảm bảo bạn sử dụng st.session_state.ward_checkbox ở đây
-            disabled= not st.session_state.ward_checkbox 
+            # SỬ DỤNG session_state.ward_enabled
+            disabled= not st.session_state.ward_enabled 
         )
     
     with c5:

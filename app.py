@@ -127,7 +127,7 @@ if selected == "Trang chủ & Tableau":
         else:
             cheapest_district = "N/A (Thiếu cột Diện tích hoặc Quận/Huyện)"
         c1.metric("Số nhà đang bán", f"{num_houses:,}")
-        c2.metric("Giá trung bình", f"{avg_price/1000:,.2f/} Tỷ") # Giả sử đơn vị là Tỷ
+        c2.metric("Giá trung bình", f"{avg_price/1000:,.2f} Tỷ") # Giả sử đơn vị là Tỷ
         c3.metric("Khu vực rẻ nhất (m²)", f"{cheapest_district}")
         c4.metric("Căn đắt nhất", f"{max_price:,.2f} Tỷ")
     else:

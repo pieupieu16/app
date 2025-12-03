@@ -1,6 +1,6 @@
 streamlit
 pandas
 plotly
-scikit-learn
 joblib
 streamlit-option-menu
+scikit-learn

@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 # 1. TẢI DỮ LIỆU
-df = pd.read_csv('VN_housing_dataset.csv')
+df = pd.read_csv('processed_housing_data.zip')
 
 # Xóa cột index thừa nếu có
 if 'Unnamed: 0' in df.columns:

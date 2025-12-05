@@ -540,17 +540,15 @@ elif selected == "Phân tích Trực quan":
 elif selected == "Bảng điều khiển Tableau& Bản đồ quy hoạch Hà Nội":
     
     st.markdown("---") # Đường kẻ phân cách cho đẹp
-    st.subheader("📍 Thông tin quy hoạch")
+    st.subheader(" Thông tin quy hoạch")
 
     # Thêm nút bấm liên kết
     st.link_button(
-        label="🗺️ Mở Bản đồ quy hoạch Hà Nội (qhkhsdd.hanoi.gov.vn)", 
+        label="🗺️ Mở Bản đồ quy hoạch Hà Nội", 
         url="https://qhkhsdd.hanoi.gov.vn/datdai?link=63d567a66c54",
         help="Nhấn để xem bản đồ quy hoạch chi tiết trên trang của Sở Tài nguyên và Môi trường Hà Nội"
     )
 
-    st.title(" Bảng điều khiển Phân tích BĐS")
-    st.markdown("---")
     st.divider()
     st.subheader(" Tableau Visualization")
     

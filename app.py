@@ -66,7 +66,7 @@ with col_text:
 
 selected = option_menu(
     menu_title=None,
-    options=["Trang chủ & Tableau", "Quản lý Dữ liệu (CRUD)", "Phân tích Trực quan", "Dự báo Giá nhà"],
+    options=["Trang chủ", "Quản lý Dữ liệu (CRUD)", "Phân tích Trực quan", "Bảng điều khiển Tableau& Bản đồ quy hoạch Hà Nội"],
     icons=["house", "table", "bar-chart-line", "magic"],
     default_index=0,
     orientation="horizontal",
@@ -87,7 +87,7 @@ COL_TYPE = 'Loại nhà'
 # =========================================================
 # MODULE 1: TRANG CHỦ & TABLEAU
 # =========================================================
-if selected == "Trang chủ & Tableau":
+if selected == "Trang chủ":
     st.title(" Dashboard Tổng quan")
     
     # CSS Custom cho Metric
@@ -167,125 +167,14 @@ if selected == "Trang chủ & Tableau":
                 cheapest_district = f"Lỗi xử lý dữ liệu: {str(e)}"\
                 
         c1.metric("Số nhà đang bán", f"{num_houses:,}")
-        c2.metric("Giá trung bình", f"{avg_price/1000:,.2f} Tỷ") # Giả sử đơn vị là Tỷ
+        c2.metric("Giá trung bình", f"{avg_price/1000:,.2f} Tỷ")
         c3.metric("Khu vực rẻ nhất (m²)", f"{cheapest_district}")
         c4.metric("Căn đắt nhất", f"{max_price/1000:,.2f} Tỷ")
     else:
         st.info("Vui lòng Import dữ liệu ở tab 'Quản lý Dữ liệu' để xem thống kê.")
 
-    st.divider()
-    st.subheader(" Tableau Visualization")
-    
-    tableau_code = """
-    <div class='tableauPlaceholder' id='viz1763483099173' style='position: relative'><noscript><a href='#'><img alt='tk ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bo&#47;Book7_17631271401140&#47;tk&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='Book7_17631271401140&#47;tk' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bo&#47;Book7_17631271401140&#47;tk&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1763483099173');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else { vizElement.style.width='100%';vizElement.style.height='1327px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
-                                            vizElement.parentNode.insertBefore(scriptElement, vizElement);                
-                                            </script>
-    """
-    components.html(tableau_code, height=850, scrolling=True)
-
-# =========================================================
-# MODULE 2: QUẢN LÝ DỮ LIỆU
-# =========================================================
-elif selected == "Quản lý Dữ liệu (CRUD)":
-    st.title(" Quản lý Dữ liệu")
-    
-    with st.expander(" Import Dữ liệu mới (CSV)"):
-        uploaded_file = st.file_uploader("Chọn file CSV", type=['csv'])
-        if uploaded_file is not None:
-            try:
-                new_df = pd.read_csv(uploaded_file)
-                st.session_state.df = new_df
-                st.success("Import thành công!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Lỗi file: {e}")
-
-    st.subheader(" Tìm kiếm & Lọc")
-    col_search, col_filter = st.columns(2)
-    with col_search:
-        search_term = st.text_input("Tìm kiếm (Quận/Loại nhà):")
-    with col_filter:
-        price_range = st.slider("Khoảng giá (Triệu)", 0.0, 100.0, (0.0, 1000000.0))
-    
-    filtered_df = df.copy()
-    if not filtered_df.empty:
-        if COL_PRICE in filtered_df.columns:
-            filtered_df = filtered_df[(filtered_df[COL_PRICE] >= price_range[0]) & (filtered_df[COL_PRICE] <= price_range[1])]
-        
-        if search_term:
-            # Tạo mask tìm kiếm an toàn
-            mask = pd.Series(False, index=filtered_df.index)
-            if COL_DISTRICT in filtered_df.columns:
-                mask |= filtered_df[COL_DISTRICT].str.contains(search_term, case=False, na=False)
-            if COL_TYPE in filtered_df.columns:
-                mask |= filtered_df[COL_TYPE].str.contains(search_term, case=False, na=False)
-            filtered_df = filtered_df[mask]
-
-        st.info(f"Hiển thị {len(filtered_df)} bản ghi.")
-        edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
-
-        if st.button(" Lưu thay đổi"):
-            st.session_state.df = edited_df
-            st.success("Đã lưu dữ liệu tạm thời (Reload trang sẽ mất nếu không lưu xuống file)!")
-    else:
-        st.warning("Chưa có dữ liệu.")
-
-# =========================================================
-# MODULE 3: PHÂN TÍCH TRỰC QUAN
-# =========================================================
-elif selected == "Phân tích Trực quan":
-    st.title(" Phân tích Giá trị BĐS")
-
-    if df.empty or COL_PRICE not in df.columns:
-        st.warning("Chưa có dữ liệu hoặc cột 'Giá nhà' không tồn tại.")
-        st.stop()
-
-    tab1, tab2, tab3 = st.tabs([" Vị trí & Giá", " Đặc điểm & Giá", " Tương quan"])
-
-    with tab1:
-        st.subheader("Giá trung bình theo Quận")
-        if COL_DISTRICT in df.columns:
-            avg_price_quan = df.groupby(COL_DISTRICT)[COL_PRICE].mean().sort_values(ascending=False).reset_index()
-            fig_bar = px.bar(avg_price_quan, x=COL_DISTRICT, y=COL_PRICE, color=COL_PRICE,
-                             labels={COL_PRICE: 'Giá TB (Tỷ)'})
-            st.plotly_chart(fig_bar, use_container_width=True)
-
-    with tab2:
-        st.subheader("Phân tích theo Loại hình")
-        col_a, col_b = st.columns(2)
-        with col_a:
-            if COL_TYPE in df.columns:
-                type_counts = df[COL_TYPE].value_counts().reset_index()
-                type_counts.columns = [COL_TYPE, 'Số lượng']
-                fig_pie = px.pie(type_counts, values='Số lượng', names=COL_TYPE, title="Tỷ lệ Loại hình")
-                st.plotly_chart(fig_pie, use_container_width=True)
-        with col_b:
-            if COL_AREA in df.columns:
-                fig_scatter = px.scatter(df, x=COL_AREA, y=COL_PRICE, color=COL_TYPE if COL_TYPE in df.columns else None, 
-                                         title="Diện tích vs Giá")
-                st.plotly_chart(fig_scatter, use_container_width=True)
-
-    with tab3:
-        st.subheader("Ma trận tương quan")
-        numeric_df = df.select_dtypes(include=['float64', 'int64'])
-        # Chọn các cột quan trọng từ danh sách mới
-        potential_cols = [COL_PRICE, COL_AREA, 'Số phòng ngủ', 'Số tầng', 'Rộng', 'Dài']
-        valid_cols = [c for c in potential_cols if c in numeric_df.columns]
-        
-        if valid_cols:
-            corr_matrix = numeric_df[valid_cols].corr()
-            fig_corr = px.imshow(corr_matrix, text_auto=True, aspect="auto", color_continuous_scale='RdBu_r')
-            st.plotly_chart(fig_corr, use_container_width=True)
-
-# =========================================================
-# MODULE 4: DỰ BÁO GIÁ (ĐÃ SỬA LỖI LOGIC FORM)
-# =========================================================
-elif selected == "Dự báo Giá nhà":
-
-    st.title("  Dự báo Giá trị Bất động sản")
-    st.markdown("---")
-
     # 1. LOAD MODEL
+  
     @st.cache_resource
     def load_model_assets():
         try:
@@ -438,7 +327,7 @@ elif selected == "Dự báo Giá nhà":
                     "Xã Kim An", "Xã Kim Thư", "Xã Liên Châu", "Xã Mỹ Hưng", "Xã Phương Trung", 
                     "Xã Tam Hưng", "Xã Thanh Cao", "Xã Thanh Mai", "Xã Thanh Văn", "Xã Xuân Dương"],
         
-        "Unknown": ["Unknown"] # Giữ lại Unknown nếu bạn muốn hiển thị
+        
     }
 
     # Extract Features Names from Model
@@ -547,3 +436,129 @@ elif selected == "Dự báo Giá nhà":
             except Exception as e:
                 st.error(f"Lỗi khi dự báo: {str(e)}")
                 st.dataframe(input_data) # Debug
+
+
+   
+
+# =========================================================
+# MODULE 2: QUẢN LÝ DỮ LIỆU
+# =========================================================
+elif selected == "Quản lý Dữ liệu (CRUD)":
+    st.title(" Quản lý Dữ liệu")
+    
+    with st.expander(" Import Dữ liệu mới (CSV)"):
+        uploaded_file = st.file_uploader("Chọn file CSV", type=['csv'])
+        if uploaded_file is not None:
+            try:
+                new_df = pd.read_csv(uploaded_file)
+                st.session_state.df = new_df
+                st.success("Import thành công!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Lỗi file: {e}")
+
+    st.subheader(" Tìm kiếm & Lọc")
+    col_search, col_filter = st.columns(2)
+    with col_search:
+        search_term = st.text_input("Tìm kiếm (Quận/Loại nhà):")
+    with col_filter:
+        price_range = st.slider("Khoảng giá (Triệu)", 0.0, 100.0, (0.0, df[COL_PRICE].max() ))
+    
+    filtered_df = df.copy()
+    if not filtered_df.empty:
+        if COL_PRICE in filtered_df.columns:
+            filtered_df = filtered_df[(filtered_df[COL_PRICE] >= price_range[0]) & (filtered_df[COL_PRICE] <= price_range[1])]
+        
+        if search_term:
+            # Tạo mask tìm kiếm an toàn
+            mask = pd.Series(False, index=filtered_df.index)
+            if COL_DISTRICT in filtered_df.columns:
+                mask |= filtered_df[COL_DISTRICT].str.contains(search_term, case=False, na=False)
+            if COL_TYPE in filtered_df.columns:
+                mask |= filtered_df[COL_TYPE].str.contains(search_term, case=False, na=False)
+            filtered_df = filtered_df[mask]
+
+        st.info(f"Hiển thị {len(filtered_df)} bản ghi.")
+        edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
+
+        if st.button(" Lưu thay đổi"):
+            st.session_state.df = edited_df
+            st.success("Đã lưu dữ liệu tạm thời (Reload trang sẽ mất nếu không lưu xuống file)!")
+    else:
+        st.warning("Chưa có dữ liệu.")
+
+# =========================================================
+# MODULE 3: PHÂN TÍCH TRỰC QUAN
+# =========================================================
+elif selected == "Phân tích Trực quan":
+    st.title(" Phân tích Giá trị BĐS")
+
+    if df.empty or COL_PRICE not in df.columns:
+        st.warning("Chưa có dữ liệu hoặc cột 'Giá nhà' không tồn tại.")
+        st.stop()
+
+    tab1, tab2, tab3 = st.tabs([" Vị trí & Giá", " Đặc điểm & Giá", " Tương quan"])
+
+    with tab1:
+        st.subheader("Giá trung bình theo Quận")
+        if COL_DISTRICT in df.columns:
+            avg_price_quan = df.groupby(COL_DISTRICT)[COL_PRICE].mean().sort_values(ascending=False).reset_index()
+            fig_bar = px.bar(avg_price_quan, x=COL_DISTRICT, y=COL_PRICE, color=COL_PRICE,
+                             labels={COL_PRICE: 'Giá TB (Tỷ)'})
+            st.plotly_chart(fig_bar, use_container_width=True)
+
+    with tab2:
+        st.subheader("Phân tích theo Loại hình")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            if COL_TYPE in df.columns:
+                type_counts = df[COL_TYPE].value_counts().reset_index()
+                type_counts.columns = [COL_TYPE, 'Số lượng']
+                fig_pie = px.pie(type_counts, values='Số lượng', names=COL_TYPE, title="Tỷ lệ Loại hình")
+                st.plotly_chart(fig_pie, use_container_width=True)
+        with col_b:
+            if COL_AREA in df.columns:
+                fig_scatter = px.scatter(df, x=COL_AREA, y=COL_PRICE, color=COL_TYPE if COL_TYPE in df.columns else None, 
+                                         title="Diện tích vs Giá")
+                st.plotly_chart(fig_scatter, use_container_width=True)
+
+    with tab3:
+        st.subheader("Ma trận tương quan")
+        numeric_df = df.select_dtypes(include=['float64', 'int64'])
+        # Chọn các cột quan trọng từ danh sách mới
+        potential_cols = [COL_PRICE, COL_AREA, 'Số phòng ngủ', 'Số tầng', 'Rộng', 'Dài']
+        valid_cols = [c for c in potential_cols if c in numeric_df.columns]
+        
+        if valid_cols:
+            corr_matrix = numeric_df[valid_cols].corr()
+            fig_corr = px.imshow(corr_matrix, text_auto=True, aspect="auto", color_continuous_scale='RdBu_r')
+            st.plotly_chart(fig_corr, use_container_width=True)
+
+# =========================================================
+# MODULE 4: DỰ BÁO GIÁ (ĐÃ SỬA LỖI LOGIC FORM)
+# =========================================================
+elif selected == "Bảng điều khiển Tableau& Bản đồ quy hoạch Hà Nội":
+    
+    st.markdown("---") # Đường kẻ phân cách cho đẹp
+    st.subheader("📍 Thông tin quy hoạch")
+
+    # Thêm nút bấm liên kết
+    st.link_button(
+        label="🗺️ Mở Bản đồ quy hoạch Hà Nội (qhkhsdd.hanoi.gov.vn)", 
+        url="https://qhkhsdd.hanoi.gov.vn/datdai?link=63d567a66c54",
+        help="Nhấn để xem bản đồ quy hoạch chi tiết trên trang của Sở Tài nguyên và Môi trường Hà Nội"
+    )
+
+    st.title(" Bảng điều khiển Phân tích BĐS")
+    st.markdown("---")
+    st.divider()
+    st.subheader(" Tableau Visualization")
+    
+    tableau_code = """
+    <div class='tableauPlaceholder' id='viz1763483099173' style='position: relative'><noscript><a href='#'><img alt='tk ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bo&#47;Book7_17631271401140&#47;tk&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='Book7_17631271401140&#47;tk' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bo&#47;Book7_17631271401140&#47;tk&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1763483099173');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else { vizElement.style.width='100%';vizElement.style.height='1327px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
+                                            vizElement.parentNode.insertBefore(scriptElement, vizElement);                
+                                            </script>
+    """
+    components.html(tableau_code, height=850, scrolling=True)
+
+    

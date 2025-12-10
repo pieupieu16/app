@@ -827,8 +827,7 @@ elif selected == "Bản đồ quy hoạch Hà Nội":
         st.markdown(
             f"""
             <a href="{target_url}" target="_blank">
-                <img src="data:image/jpeg;base64,{img_base64}" width="100%" style="border-radius: 5px;">
-            </a>">(Nhấn vào ảnh để xem chi tiết)</p>
+                <img src="data:image/jpeg;base64,{img_base64}" width="100%" style="border-radius: 5px;">(Nhấn vào ảnh để xem chi tiết)</p>
             """,
             unsafe_allow_html=True
         )

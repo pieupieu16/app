@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.pipeline import Pipeline
 import re
+import base64
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Hệ thống Quản lý & Định giá BĐS Hà Nội",
@@ -805,24 +806,33 @@ elif selected == "Phân tích Trực quan":
 # =========================================================
 elif selected == "Bản đồ quy hoạch Hà Nội":
     
-    st.subheader("Bản đồ Quy hoạch")
+    
 
-    # URL đích bạn muốn dẫn tới
-    url_quy_hoach = "https://quyhoach.hanoi.vn/" 
-    # URL ảnh thumbnail bản đồ (có thể lấy link ảnh trên mạng)
-    url_anh_ban_do = "https://vinhomesland.vn/wp-content/uploads/2021/08/ban-do-quy-hoach-ha-noi-tam-nhin-2030-2050-min.jpg"
 
-    # Hiển thị ảnh có gắn link
-    st.markdown(
-        f"""
-        <a href="{url_quy_hoach}" target="_blank">
-            <img src="{url_anh_ban_do}" width="100%" style="border-radius: 10px; border: 2px solid #ddd;">
-        </a>
-        <p style="text-align: center; color: gray; font-size: 0.8em;">(Nhấn vào ảnh để xem chi tiết)</p>
-        """,
-        unsafe_allow_html=True
-    )
+    # 1. Hàm chuyển ảnh sang Base64
+    def get_base64_of_bin_file(bin_file):
+        with open(bin_file, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
 
+    # 2. Sử dụng trong giao diện
+    st.subheader("Tra cứu Quy hoạch")
+
+    img_file = 'Ảnh chụp màn hình 2025-12-10 223420.png'  # Tên file ảnh của bạn
+    target_url = 'https://quyhoach.hanoi.vn'
+
+    try:
+        img_base64 = get_base64_of_bin_file(img_file)
+        st.markdown(
+            f"""
+            <a href="{target_url}" target="_blank">
+                <img src="data:image/jpeg;base64,{img_base64}" width="100%" style="border-radius: 5px;">
+            </a>
+            """,
+            unsafe_allow_html=True
+        )
+    except FileNotFoundError:
+        st.error("Không tìm thấy file ảnh bản đồ.")
     
 
     

@@ -803,7 +803,7 @@ elif selected == "Phân tích Trực quan":
 # =========================================================
 # MODULE 4:
 # =========================================================
-elif selected == "Bảng điều khiển Tableau& Bản đồ quy hoạch Hà Nội":
+elif selected == "Bản đồ quy hoạch Hà Nội":
     
     st.subheader("Bản đồ Quy hoạch")
 

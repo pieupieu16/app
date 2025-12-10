@@ -58,8 +58,9 @@ for col in categorical_cols:
 # 6. MÃ HÓA (ENCODING) & CHUẨN BỊ DỮ LIỆU CUỐI CÙNG
 # Xóa cột Địa chỉ vì quá chi tiết, khó dùng cho model đơn giản
 df = df.drop(columns=['Địa chỉ'])
-df=df[df['Giá nhà']>1000]
+df=df[df['Giá nhà']>2000]
 df['Giá nhà'] = df['Giá nhà'] / 1000
+df = df.sample(n=20000, random_state=42)
 # One-Hot Encoding cho các biến phân loại
 df_final = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 

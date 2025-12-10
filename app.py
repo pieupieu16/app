@@ -174,9 +174,9 @@ if selected == "Trang chủ":
                 cheapest_district = f"Lỗi xử lý dữ liệu: {str(e)}"\
                 
         c1.metric("Số nhà đang bán", f"{num_houses:,}")
-        c2.metric("Giá trung bình", f"{avg_price/1000:,.2f} Tỷ")
+        c2.metric("Giá trung bình", f"{avg_price:,.2f} Tỷ")
         c3.metric("Khu vực rẻ nhất (m²)", f"{cheapest_district}")
-        c4.metric("Căn đắt nhất", f"{max_price/1000:,.2f} Tỷ")
+        c4.metric("Căn đắt nhất", f"{max_price:,.2f} Tỷ")
     else:
         st.info("Vui lòng Import dữ liệu ở tab 'Quản lý Dữ liệu' để xem thống kê.")
 
@@ -259,7 +259,7 @@ if selected == "Trang chủ":
             
             # --- BƯỚC 4: VẼ BIỂU ĐỒ ---
             # Tăng chiều rộng lên 16 (trước là 10 hoặc 14) để có thêm không gian ngang
-            fig, ax = plt.subplots(figsize=(35, 15))
+            fig, ax = plt.subplots(figsize=(50, 15))
             
             base_val = explainer.expected_value
             if isinstance(base_val, (np.ndarray, list)): base_val = base_val[0]
@@ -526,7 +526,7 @@ if selected == "Trang chủ":
                     st.markdown(f"""
                     <div style="background-color: #f0fff4; padding: 20px; border-radius: 10px; border: 2px solid #48bb78; text-align: center;">
                         <h3 style="color: #2f855a; margin:0;">GIÁ TRỊ ƯỚC TÍNH</h3>
-                        <h1 style="color: #22543d; font-size: 50px; margin: 10px 0;">{predicted_price/1000:,.2f} Tỷ</h1>
+                        <h1 style="color: #22543d; font-size: 50px; margin: 10px 0;">{predicted_price:,.2f} Tỷ</h1>
                         <p style="color: #718096;">~ {(predicted_price / (dien_tich)):,.0f} VNĐ / m²</p>
                     </div>
                     """, unsafe_allow_html=True)
@@ -596,6 +596,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
         mode_key = 'append' if "Gộp" in merge_mode else 'replace'
         
         # 3. Nút bấm xử lý
+
         if uploaded_raw_file is not None:
             if st.button("Bắt đầu Xử lý & Cập nhật", type="primary"):
                 try:

@@ -527,7 +527,7 @@ if selected == "Trang chủ":
                     <div style="background-color: #f0fff4; padding: 20px; border-radius: 10px; border: 2px solid #48bb78; text-align: center;">
                         <h3 style="color: #2f855a; margin:0;">GIÁ TRỊ ƯỚC TÍNH</h3>
                         <h1 style="color: #22543d; font-size: 50px; margin: 10px 0;">{predicted_price:,.2f} Tỷ</h1>
-                        <p style="color: #718096;">~ {(predicted_price / (dien_tich)):,.0f} VNĐ / m²</p>
+                        <p style="color: #718096;">~ {(predicted_price*1000 / (dien_tich)):,.0f} VNĐ / m²</p>
                     </div>
                     """, unsafe_allow_html=True)
                 

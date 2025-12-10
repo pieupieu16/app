@@ -577,12 +577,12 @@ if selected == "Trang chủ":
 # MODULE 2: QUẢN LÝ DỮ LIỆU (ĐÃ TỐI ƯU HÓA)
 # =========================================================
 elif selected == "Quản lý Dữ liệu (CRUD)":
-    st.title("🗃️ Quản lý Dữ liệu")
+    st.title("Quản lý Dữ liệu")
 
     # --- 1. CẬP NHẬT DỮ LIỆU MỚI ---
     st.subheader("1. Cập nhật dữ liệu mới")
     
-    with st.expander("➕ Thêm dữ liệu thô & Chạy Tiền xử lý"):
+    with st.expander("Thêm dữ liệu thô & Chạy Tiền xử lý"):
         st.info("Upload file dữ liệu thô (Raw CSV/Excel). Hệ thống sẽ tự động làm sạch và gộp vào dữ liệu chính.")
         
         # Widget Upload file
@@ -655,13 +655,13 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
             
             # Kiểm tra kích thước dữ liệu
             if len(df) > 5000:
-                st.warning("⚠️ Dữ liệu lớn (>5000 dòng). File Excel sẽ không được căn chỉnh cột tự động để đảm bảo tốc độ.")
+                st.warning("Dữ liệu lớn (>5000 dòng). File Excel sẽ không được căn chỉnh cột tự động để đảm bảo tốc độ.")
                 is_large_file = True
             else:
                 is_large_file = False
 
             # Nút download trigger việc tạo file
-            if st.button("📥 Chuẩn bị file Excel"):
+            if st.button("Chuẩn bị file Excel"):
                 with st.spinner("Đang tạo file Excel..."):
                     with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
                         df.to_excel(writer, index=False, sheet_name='Data')
@@ -675,7 +675,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
                     
                     buffer.seek(0)
                     st.download_button(
-                        label="⬇️ Click để tải Excel ngay",
+                        label="Click để tải Excel ngay",
                         data=buffer,
                         file_name='du_lieu_nha_dat.xlsx',
                         mime='application/vnd.ms-excel'
@@ -731,7 +731,6 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
         MAX_ROWS_DISPLAY = 1000
         
         if len(filtered_df) > MAX_ROWS_DISPLAY:
-            st.warning(f"⚠️ Dữ liệu quá lớn để hiển thị hết. Đang hiện {MAX_ROWS_DISPLAY} dòng đầu tiên. Hãy dùng bộ lọc để thu hẹp phạm vi.")
             display_df = filtered_df.head(MAX_ROWS_DISPLAY)
         else:
             display_df = filtered_df

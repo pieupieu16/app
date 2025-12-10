@@ -696,7 +696,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
             # Xử lý an toàn nếu cột giá không tồn tại hoặc toàn NaN
             if COL_PRICE in df.columns and df[COL_PRICE].notna().any():
                 max_price = float(df[COL_PRICE].max())
-                price_range = st.slider("💰 Khoảng giá (Triệu/m2)", 0.0, max_price, (0.0, max_price))
+                price_range = st.slider("Khoảng giá (Tỷ)", 0.0, max_price, (0.0, max_price))
             else:
                 st.warning("Không tìm thấy cột giá để lọc.")
                 price_range = (0, 0)

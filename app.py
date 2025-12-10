@@ -10,7 +10,8 @@ import io
 import preprocess
 import shap
 import matplotlib.pyplot as plt
-
+import numpy as np
+from sklearn.pipeline import Pipeline
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Hệ thống Quản lý & Định giá BĐS Hà Nội",
@@ -179,66 +180,100 @@ if selected == "Trang chủ":
         st.info("Vui lòng Import dữ liệu ở tab 'Quản lý Dữ liệu' để xem thống kê.")
 
     # 1. LOAD MODEL
-    def plot_shap_waterfall(model, input_data, model_columns):
-  
-    
+   
+
+
+
+    def plot_shap_waterfall(model, input_data, model_columns=None):
+        """
+        Hàm vẽ biểu đồ Waterfall linh hoạt cho cả Pipeline và Standalone Model.
+        Tự động lọc cột thừa (Năm, Tháng...) nếu mô hình không cần.
+        """
         try:
-            # BƯỚC 1: BÓC TÁCH PIPELINE
-            # Pipeline của bạn có dạng: Preprocessor -> Imputer -> Model
-            # Chúng ta cần lấy 'model' ra để giải thích, và dùng các bước trước đó để transform dữ liệu
+            # --- BƯỚC 1: XÁC ĐỊNH LOẠI MÔ HÌNH (PIPELINE HAY LẺ) ---
             
-            # 1.1. Lấy mô hình lõi (GradientBoostingRegressor)
-            # 'model' là tên step cuối cùng bạn đặt trong Pipeline
-            regressor = model.named_steps['model']
+            is_pipeline = hasattr(model, 'named_steps')
             
-            # 1.2. Chạy dữ liệu qua các bước tiền xử lý (Preprocessor & Imputer)
-            # input_data đang là DataFrame thô, cần biến đổi thành dạng số (numpy array) mà model hiểu
-            data_transformed = input_data.copy()
-            
-            # Duyệt qua các bước TRỪ bước cuối cùng (model)
-            for name, step in model.named_steps.items():
-                if name != 'model': 
-                    data_transformed = step.transform(data_transformed)
-            
-            # BƯỚC 2: TẠO EXPLAINER VỚI MÔ HÌNH LÕI
-            explainer = shap.TreeExplainer(regressor)
-            shap_values = explainer(data_transformed)
-            
-            # BƯỚC 3: TÁI TẠO TÊN CỘT (QUAN TRỌNG)
-            # ColumnTransformer sẽ đảo thứ tự cột (Num trước, Cat sau), nên ta cần lấy lại tên đúng
-            feature_names = []
-            try:
-                # Cách chuẩn cho Scikit-learn phiên bản mới
-                preprocessor = model.named_steps['preprocessor']
+            if is_pipeline:
+                # === TRƯỜNG HỢP 1: LÀ PIPELINE ===
+                # Lấy ra model cuối cùng (thường tên là 'model' hoặc step cuối)
+                regressor = model.steps[-1][1] 
+                preprocessor = model.steps[0][1] # Giả sử bước đầu là preprocessor
+                
+                # Biến đổi dữ liệu qua các bước tiền xử lý
+                # Lưu ý: Chỉ biến đổi nếu input_data chưa được biến đổi
+                try:
+                    data_transformed = preprocessor.transform(input_data)
+                except:
+                    # Nếu lỗi transform (do thiếu cột hoặc sai format), dùng data gốc
+                    data_transformed = input_data
+
+                # Lấy tên cột sau khi biến đổi
                 if hasattr(preprocessor, 'get_feature_names_out'):
                     feature_names = preprocessor.get_feature_names_out()
                 else:
-                    # Fallback: Tự dựng lại tên cột dựa trên cấu hình transformer
-                    # Lấy danh sách cột nhóm 'num' (RobustScaler)
-                    num_cols = preprocessor.transformers_[0][2] 
-                    # Lấy danh sách cột nhóm 'cat' (passthrough)
-                    cat_cols = preprocessor.transformers_[1][2]
-                    feature_names = list(num_cols) + list(cat_cols)
-            except:
-                # Nếu mọi cách đều lỗi thì đặt tên chung chung
-                feature_names = [f"Feature {i}" for i in range(data_transformed.shape[1])]
+                    feature_names = [f"Feature {i}" for i in range(data_transformed.shape[1])]
+                    
+            else:
+                # === TRƯỜNG HỢP 2: LÀ MÔ HÌNH LẺ (RandomForestRegressor...) ===
+                regressor = model
+                
+                # Xử lý lỗi "Feature names mismatch" (Thừa Năm, Tháng...)
+                if hasattr(regressor, 'feature_names_in_'):
+                    # Chỉ giữ lại đúng các cột mô hình đã học
+                    required_cols = regressor.feature_names_in_
+                    
+                    # Kiểm tra và lọc dữ liệu
+                    valid_cols = [c for c in required_cols if c in input_data.columns]
+                    
+                    if len(valid_cols) < len(required_cols):
+                        missing = set(required_cols) - set(valid_cols)
+                        return f"Lỗi: Dữ liệu thiếu các cột sau: {missing}"
+                    
+                    # Sắp xếp lại đúng thứ tự và loại bỏ cột thừa
+                    data_transformed = input_data[required_cols]
+                    feature_names = required_cols
+                else:
+                    data_transformed = input_data
+                    feature_names = input_data.columns
 
-            # Gán tên cột vào đối tượng SHAP để hiển thị lên biểu đồ
+            # --- BƯỚC 2: TẠO EXPLAINER ---
+            
+            # TreeExplainer yêu cầu dữ liệu đầu vào khớp với lúc train
+            explainer = shap.TreeExplainer(regressor)
+            
+            # Tính toán SHAP values
+            shap_values = explainer(data_transformed)
+
+            # Gán tên cột để hiển thị đẹp hơn
             shap_values.feature_names = feature_names
 
-            # BƯỚC 4: VẼ BIỂU ĐỒ
-            fig, ax = plt.subplots(figsize=(12, 8)) # Tăng kích thước để dễ đọc
+            # --- BƯỚC 3: VẼ BIỂU ĐỒ ---
+            fig, ax = plt.subplots(figsize=(10, 6))
+            
+            # Vẽ waterfall cho mẫu đầu tiên (index 0)
             shap.plots.waterfall(shap_values[0], max_display=15, show=False)
             
-            # Thêm tiêu đề
-            current_pred = shap_values[0].values.sum() + explainer.expected_value[0]
-            plt.title(f"Phân tích giá: {current_pred:.2f} Tỷ (Base: {explainer.expected_value[0]:.2f})", fontsize=16)
+            # Thêm tiêu đề có giá trị dự báo
+            # base_values là giá trị trung bình, .values là phần đóng góp
+            if hasattr(explainer, 'expected_value'):
+                base_val = explainer.expected_value
+                # Xử lý trường hợp expected_value là mảng (cho một số model)
+                if isinstance(base_val, (np.ndarray, list)):
+                    base_val = base_val[0]
+            else:
+                base_val = 0
+                
+            current_pred = shap_values[0].values.sum() + base_val
+            
+            plt.title(f"Dự báo: {current_pred:.2f} Tỷ (Trung bình: {base_val:.2f})", fontsize=14)
             plt.tight_layout()
             
             return fig
 
         except Exception as e:
-            return f"Không thể tạo giải thích: {str(e)}"
+            import traceback
+            return f"Không thể tạo giải thích: {str(e)} | Chi tiết: {traceback.format_exc()}"
   
     @st.cache_resource
     def load_model_assets():

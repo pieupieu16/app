@@ -822,12 +822,13 @@ elif selected == "Bản đồ quy hoạch Hà Nội":
     target_url = 'https://quyhoach.hanoi.vn'
 
     try:
+
         img_base64 = get_base64_of_bin_file(img_file)
         st.markdown(
             f"""
             <a href="{target_url}" target="_blank">
                 <img src="data:image/jpeg;base64,{img_base64}" width="100%" style="border-radius: 5px;">
-            </a>
+            </a>">(Nhấn vào ảnh để xem chi tiết)</p>
             """,
             unsafe_allow_html=True
         )

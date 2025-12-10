@@ -57,11 +57,11 @@ for col in categorical_cols:
 
 # 6. MÃ HÓA (ENCODING) & CHUẨN BỊ DỮ LIỆU CUỐI CÙNG
 # Xóa cột Địa chỉ vì quá chi tiết, khó dùng cho model đơn giản
-df_model = df.drop(columns=['Địa chỉ'])
+df = df.drop(columns=['Địa chỉ'])
 df=df[df['Giá nhà']>1000]
 df['Giá nhà'] = df['Giá nhà'] / 1000
 # One-Hot Encoding cho các biến phân loại
-df_final = pd.get_dummies(df_model, columns=categorical_cols, drop_first=True)
+df_final = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
 # 7. KIỂM TRA KẾT QUẢ
 print("Kích thước dữ liệu sau xử lý:", df_final.shape)
@@ -70,4 +70,4 @@ print(df_final.head())
 
 
 # Bạn có thể lưu lại file đã xử lý nếu cần
-df.to_csv('processed_housing_data.csv', index=False)
+df_final.to_csv('processed_housing_data.csv', index=False)

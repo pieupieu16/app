@@ -805,14 +805,22 @@ elif selected == "Phân tích Trực quan":
 # =========================================================
 elif selected == "Bảng điều khiển Tableau& Bản đồ quy hoạch Hà Nội":
     
-    st.markdown("---") # Đường kẻ phân cách cho đẹp
-    st.subheader(" Thông tin quy hoạch")
+    st.subheader("Bản đồ Quy hoạch")
 
-    # Thêm nút bấm liên kết
-    st.link_button(
-        label="🗺️ Mở Bản đồ quy hoạch Hà Nội", 
-        url="https://qhkhsdd.hanoi.gov.vn/datdai?link=63d567a66c54",
-        help="Nhấn để xem bản đồ quy hoạch chi tiết trên trang của Sở Tài nguyên và Môi trường Hà Nội"
+    # URL đích bạn muốn dẫn tới
+    url_quy_hoach = "https://quyhoach.hanoi.vn/" 
+    # URL ảnh thumbnail bản đồ (có thể lấy link ảnh trên mạng)
+    url_anh_ban_do = "https://vinhomesland.vn/wp-content/uploads/2021/08/ban-do-quy-hoach-ha-noi-tam-nhin-2030-2050-min.jpg"
+
+    # Hiển thị ảnh có gắn link
+    st.markdown(
+        f"""
+        <a href="{url_quy_hoach}" target="_blank">
+            <img src="{url_anh_ban_do}" width="100%" style="border-radius: 10px; border: 2px solid #ddd;">
+        </a>
+        <p style="text-align: center; color: gray; font-size: 0.8em;">(Nhấn vào ảnh để xem chi tiết)</p>
+        """,
+        unsafe_allow_html=True
     )
 
     

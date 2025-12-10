@@ -12,6 +12,7 @@ import shap
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.pipeline import Pipeline
+import re
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Hệ thống Quản lý & Định giá BĐS Hà Nội",
@@ -179,96 +180,102 @@ if selected == "Trang chủ":
     else:
         st.info("Vui lòng Import dữ liệu ở tab 'Quản lý Dữ liệu' để xem thống kê.")
 
-    # 1. LOAD MODEL
-    def plot_shap_waterfall(model, input_data, model_columns=None):
-        """
-        Hàm vẽ biểu đồ Waterfall cho cả Pipeline và Standalone Model.
-        Khắc phục lỗi: 'numpy.ndarray' object has no attribute 'items'
-        """
-        try:
-            # --- BƯỚC 1: CHUẨN BÓ DỮ LIỆU ĐẦU VÀO ---
-            # Đảm bảo input_data có thể xử lý được (nếu là Series thì chuyển thành DataFrame)
-            if isinstance(input_data, pd.Series):
-                input_data = input_data.to_frame().T
-            
-            # --- BƯỚC 2: XÁC ĐỊNH LOẠI MÔ HÌNH ---
-            is_pipeline = hasattr(model, 'named_steps')
-            
-            # Mặc định feature_names lấy từ cột của input (nếu có)
-            feature_names = list(input_data.columns) if hasattr(input_data, 'columns') else [f"Feature {i}" for i in range(input_data.shape[1])]
-            data_transformed = input_data
 
-            if is_pipeline:
-                # === PIPELINE: BÓC TÁCH VÀ TRANSFORM ===
-                regressor = model.steps[-1][1] 
-                preprocessor = model.steps[0][1]
-                
-                try:   
-                    # Transform dữ liệu qua preprocessor
-                    data_transformed = preprocessor.transform(input_data)
-                    
-                    # Cố gắng lấy tên cột từ preprocessor
-                    if hasattr(preprocessor, 'get_feature_names_out'):
-                        # QUAN TRỌNG: Chuyển về list thuần túy (tolist) để tránh lỗi numpy
-                        feature_names = preprocessor.get_feature_names_out().tolist()
-                    else:
-                        # Nếu không lấy được tên, tạo tên mới khớp với số lượng cột sau khi transform
-                        feature_names = [f"Feat {i}" for i in range(data_transformed.shape[1])]
-                except Exception as e:
-                    print(f"Warning: Transform pipeline failed ({str(e)}). Using raw data.")
-                    pass
 
-            else:
-                # === STANDALONE MODEL ===
-                regressor = model
-                
-                # Lọc cột thừa nếu cần
-                if hasattr(regressor, 'feature_names_in_'):
-                    required_cols = regressor.feature_names_in_
-                    # Kiểm tra input_data có phải là DataFrame không để lọc
-                    if hasattr(input_data, 'columns'):
-                        valid_cols = [c for c in required_cols if c in input_data.columns]
-                        if len(valid_cols) == len(required_cols):
-                            data_transformed = input_data[required_cols]
-                            feature_names = list(required_cols) # Chuyển về list
 
-            # --- BƯỚC 3: TÍNH SHAP VALUES ---
-            explainer = shap.TreeExplainer(regressor)
+def clean_feature_names(names):
+    """
+    Hàm rút gọn tên cột để hiển thị đẹp hơn trên biểu đồ.
+    Ví dụ: 'Huyện_Phường Khương Đình' -> 'P.Khương Đình'
+    """
+    cleaned_names = []
+    for name in names:
+        # Thay thế các từ khóa dài dòng
+        new_name = str(name)
+        new_name = new_name.replace("Huyện_Phường", "P.")
+        new_name = new_name.replace("Quận_Quận", "Q.")
+        new_name = new_name.replace("Tỉnh_Thành phố", "TP.")
+        new_name = new_name.replace("Giấy tờ pháp lý", "Pháp lý")
+        
+        # Cắt bớt nếu vẫn quá dài (trên 25 ký tự)
+        if len(new_name) > 25:
+            new_name = new_name[:22] + "..."
             
-            # check_additivity=False: Bỏ qua lỗi lệch số liệu nhỏ
-            shap_values = explainer(data_transformed, check_additivity=False)
+        cleaned_names.append(new_name)
+    return cleaned_names
 
-            # --- BƯỚC 4: GÁN TÊN CỘT AN TOÀN ---
-            # Chỉ gán nếu số lượng tên khớp với số lượng cột dữ liệu
-            if len(feature_names) == shap_values.shape[1]:
-                shap_values.feature_names = feature_names
-            elif len(feature_names) > shap_values.shape[1]:
-                # Trường hợp tên nhiều hơn cột (thường do OneHotEncoder tạo ra ít cột hơn dự kiến khi thiếu category), cắt bớt
-                shap_values.feature_names = feature_names[:shap_values.shape[1]]
-            
-            # --- BƯỚC 5: VẼ BIỂU ĐỒ ---
-            fig, ax = plt.subplots(figsize=(10, 6))
-            
-            # Lấy giá trị base (expected_value) an toàn
-            base_val = explainer.expected_value
-            if isinstance(base_val, (np.ndarray, list)):
-                base_val = base_val[0]
-                
-            # Tính giá trị dự báo hiển thị
-            current_pred = shap_values[0].values.sum() + base_val
-            
-            shap.plots.waterfall(shap_values[0], max_display=15, show=False)
-            
-            plt.title(f"Dự báo: {current_pred:,.0f} (Base: {base_val:,.0f})", fontsize=14)
-            plt.tight_layout()
-            
-            return fig
+def plot_shap_waterfall(model, input_data, model_columns=None):
+    """
+    Phiên bản tối ưu hiển thị: Tự động rút gọn tên và mở rộng khung hình.
+    """
+    try:
+        # --- BƯỚC 1: CHUẨN BỊ DỮ LIỆU ---
+        if isinstance(input_data, pd.Series):
+            input_data = input_data.to_frame().T
+        
+        is_pipeline = hasattr(model, 'named_steps')
+        
+        # Mặc định lấy tên cột từ input
+        raw_feature_names = list(input_data.columns) if hasattr(input_data, 'columns') else [f"F{i}" for i in range(input_data.shape[1])]
+        data_transformed = input_data
 
-        except Exception as e:
-            import traceback
-            # In traceback ra console để debug nếu cần
-            print(traceback.format_exc())
-            return f"Lỗi hiển thị SHAP: {str(e)}"
+        if is_pipeline:
+            # === PIPELINE ===
+            regressor = model.steps[-1][1] 
+            preprocessor = model.steps[0][1]
+            try:
+                data_transformed = preprocessor.transform(input_data)
+                if hasattr(preprocessor, 'get_feature_names_out'):
+                    raw_feature_names = preprocessor.get_feature_names_out().tolist()
+            except:
+                pass
+        else:
+            # === STANDALONE MODEL ===
+            regressor = model
+            if hasattr(regressor, 'feature_names_in_') and hasattr(input_data, 'columns'):
+                 required_cols = regressor.feature_names_in_
+                 valid_cols = [c for c in required_cols if c in input_data.columns]
+                 if len(valid_cols) == len(required_cols):
+                     data_transformed = input_data[required_cols]
+                     raw_feature_names = list(required_cols)
+
+        # --- BƯỚC 2: RÚT GỌN TÊN CỘT (QUAN TRỌNG) ---
+        # Gọi hàm làm sạch tên để tránh bị đè chữ
+        short_feature_names = clean_feature_names(raw_feature_names)
+
+        # --- BƯỚC 3: TÍNH SHAP ---
+        explainer = shap.TreeExplainer(regressor)
+        shap_values = explainer(data_transformed, check_additivity=False)
+
+        # Gán tên đã rút gọn vào
+        if len(short_feature_names) == shap_values.shape[1]:
+            shap_values.feature_names = short_feature_names
+        elif len(short_feature_names) > shap_values.shape[1]:
+             shap_values.feature_names = short_feature_names[:shap_values.shape[1]]
+        
+        # --- BƯỚC 4: VẼ BIỂU ĐỒ VỚI KÍCH THƯỚC LỚN ---
+        # Tăng figsize lên (14, 8) hoặc lớn hơn để kéo giãn chiều ngang
+        fig, ax = plt.subplots(figsize=(14, 8))
+        
+        base_val = explainer.expected_value
+        if isinstance(base_val, (np.ndarray, list)): base_val = base_val[0]
+        current_pred = shap_values[0].values.sum() + base_val
+        
+        # max_display=12: Giảm số lượng dòng hiển thị để đỡ rối
+        shap.plots.waterfall(shap_values[0], max_display=12, show=False)
+        
+        # Tùy chỉnh font chữ nhỏ lại một chút nếu cần
+        plt.gcf().axes[0].tick_params(labelsize=11)
+        
+        plt.title(f"Dự báo: {current_pred:,.0f} (Base: {base_val:,.0f})", fontsize=16)
+        plt.tight_layout()
+        
+        return fig
+
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return f"Lỗi hiển thị: {str(e)}"
   
     @st.cache_resource
     def load_model_assets():

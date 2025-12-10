@@ -132,6 +132,6 @@ print(f"Độ chính xác (R2 Score): {r2:.4f} (Càng gần 1 càng tốt)")
 
 # Lưu model
 
-joblib.dump(best_model, 'house_price_model.pkl', compress=6)
+joblib.dump(best_model, 'house_price_model.pkl' )
 print(f"\n[OK] Đã lưu mô hình tốt nhất vào file: {'house_price_model.pkl'}")
 print(f"Các cột mô hình đã học: {best_model.named_steps['model'].feature_names_in_ if hasattr(best_model.named_steps['model'], 'feature_names_in_') else 'Check pipeline'}")

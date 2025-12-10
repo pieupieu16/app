@@ -523,7 +523,6 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
                 except Exception as e:
                     st.error(f"Có lỗi xảy ra trong quá trình xử lý: {e}")
 
-    st.markdown("---")
     st.subheader("📤 Xuất dữ liệu ra file")
 
     # Kiểm tra xem có dữ liệu để xuất không
@@ -598,6 +597,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
             st.success("Đã lưu dữ liệu tạm thời (Reload trang sẽ mất nếu không lưu xuống file)!")
     else:
         st.warning("Chưa có dữ liệu.")
+        
 
 # =========================================================
 # MODULE 3: PHÂN TÍCH TRỰC QUAN

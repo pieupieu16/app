@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 
 # 1. TẢI DỮ LIỆU
-df = pd.read_csv('processed_housing_data.zip')
+df = pd.read_csv('VN_housing_dataset.csv')
 
 # Xóa cột index thừa nếu có
 if 'Unnamed: 0' in df.columns:
@@ -58,7 +58,8 @@ for col in categorical_cols:
 # 6. MÃ HÓA (ENCODING) & CHUẨN BỊ DỮ LIỆU CUỐI CÙNG
 # Xóa cột Địa chỉ vì quá chi tiết, khó dùng cho model đơn giản
 df_model = df.drop(columns=['Địa chỉ'])
-
+df=df[df['Giá nhà']>1000]
+df['Giá nhà'] = df['Giá nhà'] / 1000
 # One-Hot Encoding cho các biến phân loại
 df_final = pd.get_dummies(df_model, columns=categorical_cols, drop_first=True)
 
@@ -67,9 +68,6 @@ print("Kích thước dữ liệu sau xử lý:", df_final.shape)
 print("Các cột dữ liệu (5 dòng đầu):")
 print(df_final.head())
 
-# Tách ra X (features) và y (target) để sẵn sàng đưa vào model
-X = df_final.drop(columns=['Giá nhà'])
-y = df_final['Giá nhà']
 
 # Bạn có thể lưu lại file đã xử lý nếu cần
-df_final.to_csv('processed_housing_data.csv', index=False)
+df.to_csv('processed_housing_data.csv', index=False)

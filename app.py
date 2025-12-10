@@ -5,6 +5,9 @@ import joblib
 import streamlit.components.v1 as components
 from streamlit_option_menu import option_menu
 from datetime import datetime
+from utils import plot_shap_waterfall
+import io
+import preprocess
 
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
@@ -66,7 +69,7 @@ with col_text:
 
 selected = option_menu(
     menu_title=None,
-    options=["Trang chủ", "Quản lý Dữ liệu (CRUD)", "Phân tích Trực quan", "Bảng điều khiển Tableau& Bản đồ quy hoạch Hà Nội"],
+    options=["Trang chủ", "Quản lý Dữ liệu (CRUD)", "Phân tích Trực quan", "Bản đồ quy hoạch Hà Nội"],
     icons=["house", "table", "bar-chart-line", "magic"],
     default_index=0,
     orientation="horizontal",
@@ -85,7 +88,7 @@ COL_DISTRICT = 'Quận'
 COL_TYPE = 'Loại nhà'
 
 # =========================================================
-# MODULE 1: TRANG CHỦ & TABLEAU
+# MODULE 1: TRANG CHỦ
 # =========================================================
 if selected == "Trang chủ":
     st.title(" Dashboard Tổng quan")
@@ -432,6 +435,33 @@ if selected == "Trang chủ":
                         st.write(f"**Phường:** {selected_ward}")
                     st.write(f"**Diện tích:** {dien_tich} m²")
                     st.write(f"**Kết cấu:** {so_tang} tầng, {so_phong} PN")
+                # ... (Phần code hiển thị giá dự đoán cũ của bạn) ...
+
+                st.markdown("---")
+                st.subheader("🤖 AI Giải thích: Tại sao có mức giá này?")
+                
+                # Gọi hàm giải thích
+                with st.spinner("Đang phân tích các yếu tố tác động..."):
+                    # Lưu ý: input_data phải đúng format model yêu cầu (DataFrame)
+                    fig_explanation = plot_shap_waterfall(model, input_data, model_columns)
+                    
+                    if isinstance(fig_explanation, str): # Nếu trả về chuỗi lỗi
+                        st.warning(fig_explanation)
+                    else:
+                        # Chia cột để hiển thị đẹp hơn
+                        exp_c1, exp_c2 = st.columns([2, 1])
+                        
+                        with exp_c1:
+                            # Hiển thị biểu đồ
+                            st.pyplot(fig_explanation)
+                        
+                        with exp_c2:
+                            st.info("""
+                            **Hướng dẫn đọc biểu đồ:**
+                            - **Màu Đỏ (+):** Các yếu tố làm TĂNG giá nhà.
+                            - **Màu Xanh (-):** Các yếu tố làm GIẢM giá nhà.
+                            - **Độ dài:** Mức độ ảnh hưởng (càng dài càng quan trọng).
+                            """)
 
             except Exception as e:
                 st.error(f"Lỗi khi dự báo: {str(e)}")
@@ -446,16 +476,98 @@ if selected == "Trang chủ":
 elif selected == "Quản lý Dữ liệu (CRUD)":
     st.title(" Quản lý Dữ liệu")
     
-    with st.expander(" Import Dữ liệu mới (CSV)"):
-        uploaded_file = st.file_uploader("Chọn file CSV", type=['csv'])
-        if uploaded_file is not None:
-            try:
-                new_df = pd.read_csv(uploaded_file)
-                st.session_state.df = new_df
-                st.success("Import thành công!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Lỗi file: {e}")
+    st.subheader("Cập nhật dữ liệu mới")
+    
+    with st.expander("Thêm dữ liệu thô & Chạy Tiền xử lý"):
+        st.info("Upload file dữ liệu thô (Raw CSV/Excel). Hệ thống sẽ tự động làm sạch và gộp vào dữ liệu chính.")
+        
+        # 1. Widget Upload file
+        uploaded_raw_file = st.file_uploader("Chọn file dữ liệu thô", type=['csv', 'xlsx'])
+        
+        # 2. Tùy chọn chế độ gộp
+        merge_mode = st.radio(
+            "Phương thức cập nhật:",
+            options=["Gộp thêm vào dữ liệu cũ (Append)", "Thay thế hoàn toàn (Replace)"],
+            horizontal=True
+        )
+        mode_key = 'append' if "Gộp" in merge_mode else 'replace'
+        
+        # 3. Nút bấm xử lý
+        if uploaded_raw_file is not None:
+            if st.button("Bắt đầu Xử lý & Cập nhật", type="primary"):
+                try:
+                    with st.spinner("Đang chạy script tiền xử lý (cleaning, mapping, encoding)..."):
+                        # A. Đọc file upload
+                        if uploaded_raw_file.name.endswith('.csv'):
+                            raw_df = pd.read_csv(uploaded_raw_file)
+                        else:
+                            raw_df = pd.read_excel(uploaded_raw_file)
+                        
+                        # B. Gọi hàm xử lý từ file preprocess.py
+                        # Lưu ý: st.session_state.df là dữ liệu hiện tại đang có
+                        new_final_df = preprocess.run_pipeline(
+                            raw_df, 
+                            current_df=st.session_state.df, 
+                            mode=mode_key
+                        )
+                        
+                        # C. Lưu xuống đĩa (Ghi đè file processed_housing_data.csv)
+                        new_final_df.to_csv('processed_housing_data.csv', index=False)
+                        
+                        # D. Cập nhật vào Session State để App nhận ngay dữ liệu mới
+                        st.session_state.df = new_final_df
+                        
+                        st.success(f"Thành công! Dữ liệu đã được cập nhật. Tổng số dòng hiện tại: {len(new_final_df)}")
+                        st.balloons() # Hiệu ứng chúc mừng
+                        
+                except Exception as e:
+                    st.error(f"Có lỗi xảy ra trong quá trình xử lý: {e}")
+
+    st.markdown("---")
+    st.subheader("📤 Xuất dữ liệu ra file")
+
+    # Kiểm tra xem có dữ liệu để xuất không
+    if df is not None and not df.empty:
+        col1, col2 = st.columns(2)
+        
+        # --- TÙY CHỌN 1: XUẤT RA CSV ---
+        # Lưu ý: encoding='utf-8-sig' để Excel hiển thị đúng tiếng Việt không bị lỗi font
+        csv_data = df.to_csv(index=False).encode('utf-8-sig')
+        
+        with col1:
+            st.download_button(
+                label="📥 Tải xuống file CSV",
+                data=csv_data,
+                file_name='du_lieu_nha_dat.csv',
+                mime='text/csv',
+                help="Thích hợp để nhập vào các phần mềm phân tích khác (Tableau, PowerBI...)"
+            )
+            
+        # --- TÙY CHỌN 2: XUẤT RA EXCEL (XLSX) ---
+        # Dùng io.BytesIO để lưu file vào bộ nhớ đệm thay vì lưu xuống ổ cứng server
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Data')
+            
+            # (Tùy chọn) Auto-adjust độ rộng cột cho đẹp
+            worksheet = writer.sheets['Data']
+            for i, col in enumerate(df.columns):
+                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.set_column(i, i, max_len)
+                
+        # Đưa con trỏ về đầu file
+        buffer.seek(0)
+        
+        with col2:
+            st.download_button(
+                label="📥 Tải xuống file Excel",
+                data=buffer,
+                file_name='du_lieu_nha_dat.xlsx',
+                mime='application/vnd.ms-excel',
+                help="File Excel đã được định dạng, dễ đọc cho báo cáo."
+            )
+    else:
+        st.warning("⚠️ Chưa có dữ liệu nào để xuất. Vui lòng import dữ liệu trước.")
 
     st.subheader(" Tìm kiếm & Lọc")
     col_search, col_filter = st.columns(2)
@@ -493,49 +605,51 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
 elif selected == "Phân tích Trực quan":
     st.title(" Phân tích Giá trị BĐS")
 
-    if df.empty or COL_PRICE not in df.columns:
-        st.warning("Chưa có dữ liệu hoặc cột 'Giá nhà' không tồn tại.")
-        st.stop()
+    
 
-    tab1, tab2, tab3 = st.tabs([" Vị trí & Giá", " Đặc điểm & Giá", " Tương quan"])
+    tab1, tab2, tab3,tab4 = st.tabs([" Vị trí & Giá", " Đặc điểm & Giá", "Phân phối giá nhà","Phân tích outline theo khu vực"])
 
     with tab1:
         st.subheader("Giá trung bình theo Quận")
-        if COL_DISTRICT in df.columns:
-            avg_price_quan = df.groupby(COL_DISTRICT)[COL_PRICE].mean().sort_values(ascending=False).reset_index()
-            fig_bar = px.bar(avg_price_quan, x=COL_DISTRICT, y=COL_PRICE, color=COL_PRICE,
-                             labels={COL_PRICE: 'Giá TB (Tỷ)'})
-            st.plotly_chart(fig_bar, use_container_width=True)
+        tableau_code = """
+        <div class='tableauPlaceholder' id='viz1765358854926' style='position: relative'><noscript><a href='#'><img alt='Dashboard 3 ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard3&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='trcquanhadliuginh&#47;Dashboard3' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard3&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1765358854926');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else { vizElement.style.width='100%';vizElement.style.height='727px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
+                                                vizElement.parentNode.insertBefore(scriptElement, vizElement);                </script>
+        """
+        components.html(tableau_code, height=850, scrolling=True)
 
     with tab2:
         st.subheader("Phân tích theo Loại hình")
         col_a, col_b = st.columns(2)
         with col_a:
-            if COL_TYPE in df.columns:
-                type_counts = df[COL_TYPE].value_counts().reset_index()
-                type_counts.columns = [COL_TYPE, 'Số lượng']
-                fig_pie = px.pie(type_counts, values='Số lượng', names=COL_TYPE, title="Tỷ lệ Loại hình")
-                st.plotly_chart(fig_pie, use_container_width=True)
+            tableau_code = """
+            <div class='tableauPlaceholder' id='viz1765358659690' style='position: relative'><noscript><a href='#'><img alt='Dashboard 1 ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard1&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='trcquanhadliuginh&#47;Dashboard1' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard1&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /><param name='filter' value='publish=yes' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1765358659690');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.minWidth='420px';vizElement.style.maxWidth='650px';vizElement.style.width='100%';vizElement.style.minHeight='587px';vizElement.style.maxHeight='887px';vizElement.style.height=(divElement.offsetWidth*0.75)+'px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.minWidth='420px';vizElement.style.maxWidth='650px';vizElement.style.width='100%';vizElement.style.minHeight='587px';vizElement.style.maxHeight='887px';vizElement.style.height=(divElement.offsetWidth*0.75)+'px';} else { vizElement.style.width='100%';vizElement.style.height='727px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';                   
+              vizElement.parentNode.insertBefore(scriptElement, vizElement);                </script>
+            """
+            components.html(tableau_code, height=850, scrolling=True)
         with col_b:
-            if COL_AREA in df.columns:
-                fig_scatter = px.scatter(df, x=COL_AREA, y=COL_PRICE, color=COL_TYPE if COL_TYPE in df.columns else None, 
-                                         title="Diện tích vs Giá")
-                st.plotly_chart(fig_scatter, use_container_width=True)
+            tableau_code = """
+            <<div class='tableauPlaceholder' id='viz1765359243747' style='position: relative'><noscript><a href='#'><img alt='Dashboard 4 ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard4&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='trcquanhadliuginh&#47;Dashboard4' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard4&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1765359243747');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else { vizElement.style.width='100%';vizElement.style.height='727px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
+                                                    vizElement.parentNode.insertBefore(scriptElement, vizElement);                </script>
+            """
+            components.html(tableau_code, height=850, scrolling=True)
 
     with tab3:
-        st.subheader("Ma trận tương quan")
-        numeric_df = df.select_dtypes(include=['float64', 'int64'])
-        # Chọn các cột quan trọng từ danh sách mới
-        potential_cols = [COL_PRICE, COL_AREA, 'Số phòng ngủ', 'Số tầng', 'Rộng', 'Dài']
-        valid_cols = [c for c in potential_cols if c in numeric_df.columns]
+        st.subheader("Phân phối giá nhà")
+        tableau_code = """
+        <div class='tableauPlaceholder' id='viz1765359115044' style='position: relative'><noscript><a href='#'><img alt='Dashboard 5 ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard5&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='trcquanhadliuginh&#47;Dashboard5' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard5&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1765359115044');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else { vizElement.style.width='100%';vizElement.style.height='727px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
+                                                vizElement.parentNode.insertBefore(scriptElement, vizElement);                </script>
+        """
+        components.html(tableau_code, height=850, scrolling=True)
         
-        if valid_cols:
-            corr_matrix = numeric_df[valid_cols].corr()
-            fig_corr = px.imshow(corr_matrix, text_auto=True, aspect="auto", color_continuous_scale='RdBu_r')
-            st.plotly_chart(fig_corr, use_container_width=True)
-
+    with tab4:
+        st.subheader("Phân tích outline theo khu vực")
+        tableau_code = """
+        <div class='tableauPlaceholder' id='viz1765359797054' style='position: relative'><noscript><a href='#'><img alt='Dashboard 2 ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard2&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='trcquanhadliuginh&#47;Dashboard2' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;tr&#47;trcquanhadliuginh&#47;Dashboard2&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1765359797054');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else { vizElement.style.width='100%';vizElement.style.height='727px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
+                                                vizElement.parentNode.insertBefore(scriptElement, vizElement);                </script>
+        """
+        components.html(tableau_code, height=850, scrolling=True)
 # =========================================================
-# MODULE 4: DỰ BÁO GIÁ (ĐÃ SỬA LỖI LOGIC FORM)
+# MODULE 4:
 # =========================================================
 elif selected == "Bảng điều khiển Tableau& Bản đồ quy hoạch Hà Nội":
     
@@ -549,14 +663,6 @@ elif selected == "Bảng điều khiển Tableau& Bản đồ quy hoạch Hà N�
         help="Nhấn để xem bản đồ quy hoạch chi tiết trên trang của Sở Tài nguyên và Môi trường Hà Nội"
     )
 
-    st.divider()
-    st.subheader(" Tableau Visualization")
     
-    tableau_code = """
-    <div class='tableauPlaceholder' id='viz1763483099173' style='position: relative'><noscript><a href='#'><img alt='tk ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bo&#47;Book7_17631271401140&#47;tk&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='Book7_17631271401140&#47;tk' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Bo&#47;Book7_17631271401140&#47;tk&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='language' value='en-US' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1763483099173');                    var vizElement = divElement.getElementsByTagName('object')[0];                    if ( divElement.offsetWidth > 800 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else if ( divElement.offsetWidth > 500 ) { vizElement.style.width='1000px';vizElement.style.height='827px';} else { vizElement.style.width='100%';vizElement.style.height='1327px';}                     var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';
-                                            vizElement.parentNode.insertBefore(scriptElement, vizElement);                
-                                            </script>
-    """
-    components.html(tableau_code, height=850, scrolling=True)
 
     

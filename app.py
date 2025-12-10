@@ -494,8 +494,8 @@ if selected == "Trang chủ":
         input_data['Rộng'] = chieu_rong
         input_data['Số tầng'] = so_tang
         input_data['Số phòng ngủ'] = so_phong
-        input_data['Năm'] = nam_gd
-        input_data['Tháng'] = thang_gd
+        # input_data['Năm'] = nam_gd
+        # input_data['Tháng'] = thang_gd
 
         # C. Điền dữ liệu One-Hot
         def set_one_hot(prefix, value):

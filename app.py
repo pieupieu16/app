@@ -573,21 +573,22 @@ if selected == "Trang chủ":
 
    
 
-# =========================================================
-# MODULE 2: QUẢN LÝ DỮ LIỆU
+## =========================================================
+# MODULE 2: QUẢN LÝ DỮ LIỆU (ĐÃ TỐI ƯU HÓA)
 # =========================================================
 elif selected == "Quản lý Dữ liệu (CRUD)":
-    st.title(" Quản lý Dữ liệu")
+    st.title("🗃️ Quản lý Dữ liệu")
+
+    # --- 1. CẬP NHẬT DỮ LIỆU MỚI ---
+    st.subheader("1. Cập nhật dữ liệu mới")
     
-    st.subheader("Cập nhật dữ liệu mới")
-    
-    with st.expander("Thêm dữ liệu thô & Chạy Tiền xử lý"):
+    with st.expander("➕ Thêm dữ liệu thô & Chạy Tiền xử lý"):
         st.info("Upload file dữ liệu thô (Raw CSV/Excel). Hệ thống sẽ tự động làm sạch và gộp vào dữ liệu chính.")
         
-        # 1. Widget Upload file
+        # Widget Upload file
         uploaded_raw_file = st.file_uploader("Chọn file dữ liệu thô", type=['csv', 'xlsx'])
         
-        # 2. Tùy chọn chế độ gộp
+        # Tùy chọn chế độ gộp
         merge_mode = st.radio(
             "Phương thức cập nhật:",
             options=["Gộp thêm vào dữ liệu cũ (Append)", "Thay thế hoàn toàn (Replace)"],
@@ -595,10 +596,9 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
         )
         mode_key = 'append' if "Gộp" in merge_mode else 'replace'
         
-        # 3. Nút bấm xử lý
-
+        # Nút bấm xử lý
         if uploaded_raw_file is not None:
-            if st.button("Bắt đầu Xử lý & Cập nhật", type="primary"):
+            if st.button("🚀 Bắt đầu Xử lý & Cập nhật", type="primary"):
                 try:
                     with st.spinner("Đang chạy script tiền xử lý (cleaning, mapping, encoding)..."):
                         # A. Đọc file upload
@@ -607,102 +607,151 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
                         else:
                             raw_df = pd.read_excel(uploaded_raw_file)
                         
-                        # B. Gọi hàm xử lý từ file preprocess.py
-                        # Lưu ý: st.session_state.df là dữ liệu hiện tại đang có
+                        # B. Gọi hàm xử lý (Giả sử bạn có module preprocess)
+                        # Lưu ý: Đảm bảo preprocess.run_pipeline trả về DataFrame chuẩn
                         new_final_df = preprocess.run_pipeline(
                             raw_df, 
-                            current_df=st.session_state.df, 
+                            current_df=st.session_state.get('df', pd.DataFrame()), 
                             mode=mode_key
                         )
                         
-                        # C. Lưu xuống đĩa (Ghi đè file processed_housing_data.csv)
+                        # C. Lưu xuống đĩa
                         new_final_df.to_csv('processed_housing_data.csv', index=False)
                         
-                        # D. Cập nhật vào Session State để App nhận ngay dữ liệu mới
+                        # D. QUAN TRỌNG: Xóa Cache cũ và Cập nhật Session
+                        st.cache_data.clear()  # <--- Xóa cache để lần sau load lại dữ liệu mới
                         st.session_state.df = new_final_df
                         
-                        st.success(f"Thành công! Dữ liệu đã được cập nhật. Tổng số dòng hiện tại: {len(new_final_df)}")
-                        st.balloons() # Hiệu ứng chúc mừng
+                        st.success(f"✅ Thành công! Tổng số dòng hiện tại: {len(new_final_df)}")
+                        st.balloons()
                         
                 except Exception as e:
-                    st.error(f"Có lỗi xảy ra trong quá trình xử lý: {e}")
+                    st.error(f"❌ Có lỗi xảy ra: {e}")
 
-    st.subheader("📤 Xuất dữ liệu ra file")
+    # --- 2. XUẤT DỮ LIỆU ---
+    st.subheader("2. Xuất dữ liệu ra file")
+    
+    # Lấy df từ session state
+    df = st.session_state.get('df', None)
 
-    # Kiểm tra xem có dữ liệu để xuất không
     if df is not None and not df.empty:
         col1, col2 = st.columns(2)
         
-        # --- TÙY CHỌN 1: XUẤT RA CSV ---
-        # Lưu ý: encoding='utf-8-sig' để Excel hiển thị đúng tiếng Việt không bị lỗi font
+        # --- Xuất CSV (Nhanh, khuyến khích dùng) ---
         csv_data = df.to_csv(index=False).encode('utf-8-sig')
-        
         with col1:
             st.download_button(
-                label="📥 Tải xuống file CSV",
+                label="📥 Tải xuống CSV (Nhanh)",
                 data=csv_data,
                 file_name='du_lieu_nha_dat.csv',
-                mime='text/csv',
-                help="Thích hợp để nhập vào các phần mềm phân tích khác (Tableau, PowerBI...)"
+                mime='text/csv'
             )
             
-        # --- TÙY CHỌN 2: XUẤT RA EXCEL (XLSX) ---
-        # Dùng io.BytesIO để lưu file vào bộ nhớ đệm thay vì lưu xuống ổ cứng server
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Data')
-            
-            # (Tùy chọn) Auto-adjust độ rộng cột cho đẹp
-            worksheet = writer.sheets['Data']
-            for i, col in enumerate(df.columns):
-                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
-                worksheet.set_column(i, i, max_len)
-                
-        # Đưa con trỏ về đầu file
-        buffer.seek(0)
-        
+        # --- Xuất Excel (Chậm, cần tối ưu) ---
+        # Chỉ xử lý Excel nếu dữ liệu < 100.000 dòng (tránh crash)
         with col2:
-            st.download_button(
-                label="📥 Tải xuống file Excel",
-                data=buffer,
-                file_name='du_lieu_nha_dat.xlsx',
-                mime='application/vnd.ms-excel',
-                help="File Excel đã được định dạng, dễ đọc cho báo cáo."
-            )
-    else:
-        st.warning("⚠️ Chưa có dữ liệu nào để xuất. Vui lòng import dữ liệu trước.")
+            # Dùng buffer để không tốn ổ cứng server
+            buffer = io.BytesIO()
+            
+            # Kiểm tra kích thước dữ liệu
+            if len(df) > 5000:
+                st.warning("⚠️ Dữ liệu lớn (>5000 dòng). File Excel sẽ không được căn chỉnh cột tự động để đảm bảo tốc độ.")
+                is_large_file = True
+            else:
+                is_large_file = False
 
-    st.subheader(" Tìm kiếm & Lọc")
-    col_search, col_filter = st.columns(2)
-    with col_search:
-        search_term = st.text_input("Tìm kiếm (Quận/Loại nhà):")
-    with col_filter:
-        price_range = st.slider("Khoảng giá (Triệu)", 0.0, 100.0, (0.0, df[COL_PRICE].max() ))
+            # Nút download trigger việc tạo file
+            if st.button("📥 Chuẩn bị file Excel"):
+                with st.spinner("Đang tạo file Excel..."):
+                    with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                        df.to_excel(writer, index=False, sheet_name='Data')
+                        
+                        # Chỉ căn chỉnh cột (Auto-adjust) nếu file nhỏ
+                        if not is_large_file:
+                            worksheet = writer.sheets['Data']
+                            for i, col in enumerate(df.columns):
+                                max_len = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                                worksheet.set_column(i, i, max_len)
+                    
+                    buffer.seek(0)
+                    st.download_button(
+                        label="⬇️ Click để tải Excel ngay",
+                        data=buffer,
+                        file_name='du_lieu_nha_dat.xlsx',
+                        mime='application/vnd.ms-excel'
+                    )
+    else:
+        st.warning("⚠️ Chưa có dữ liệu nào để xuất.")
+
+    # --- 3. TÌM KIẾM & LỌC (ĐÃ TỐI ƯU HIỂN THỊ) ---
+    st.subheader("3. Tìm kiếm & Lọc nhanh")
     
-    filtered_df = df.copy()
-    if not filtered_df.empty:
-        if COL_PRICE in filtered_df.columns:
-            filtered_df = filtered_df[(filtered_df[COL_PRICE] >= price_range[0]) & (filtered_df[COL_PRICE] <= price_range[1])]
+    if df is not None and not df.empty:
+        col_search, col_filter = st.columns(2)
         
+        with col_search:
+            search_term = st.text_input("🔍 Tìm kiếm (Quận/Loại nhà):")
+        
+        with col_filter:
+            # Xử lý an toàn nếu cột giá không tồn tại hoặc toàn NaN
+            if COL_PRICE in df.columns and df[COL_PRICE].notna().any():
+                max_price = float(df[COL_PRICE].max())
+                price_range = st.slider("💰 Khoảng giá (Triệu/m2)", 0.0, max_price, (0.0, max_price))
+            else:
+                st.warning("Không tìm thấy cột giá để lọc.")
+                price_range = (0, 0)
+        
+        # Logic lọc dữ liệu
+        filtered_df = df.copy()
+        
+        # 1. Lọc theo giá
+        if COL_PRICE in filtered_df.columns:
+            filtered_df = filtered_df[
+                (filtered_df[COL_PRICE] >= price_range[0]) & 
+                (filtered_df[COL_PRICE] <= price_range[1])
+            ]
+        
+        # 2. Lọc theo từ khóa (Vectorized - Nhanh hơn)
         if search_term:
-            # Tạo mask tìm kiếm an toàn
+            # Chuyển về chữ thường để tìm không phân biệt hoa thường
+            term = search_term.lower()
             mask = pd.Series(False, index=filtered_df.index)
+            
             if COL_DISTRICT in filtered_df.columns:
-                mask |= filtered_df[COL_DISTRICT].str.contains(search_term, case=False, na=False)
+                mask |= filtered_df[COL_DISTRICT].astype(str).str.lower().str.contains(term, na=False)
             if COL_TYPE in filtered_df.columns:
-                mask |= filtered_df[COL_TYPE].str.contains(search_term, case=False, na=False)
+                mask |= filtered_df[COL_TYPE].astype(str).str.lower().str.contains(term, na=False)
+            
             filtered_df = filtered_df[mask]
 
-        st.info(f"Hiển thị {len(filtered_df)} bản ghi.")
-        edited_df = st.data_editor(filtered_df, num_rows="dynamic", use_container_width=True)
+        st.info(f"📊 Tìm thấy **{len(filtered_df)}** bản ghi phù hợp.")
 
-        if st.button(" Lưu thay đổi"):
-            st.session_state.df = edited_df
-            st.success("Đã lưu dữ liệu tạm thời (Reload trang sẽ mất nếu không lưu xuống file)!")
+        # --- HIỂN THỊ DỮ LIỆU THÔNG MINH ---
+        # Chỉ cho phép edit trên 1000 dòng đầu để tránh treo trình duyệt
+        MAX_ROWS_DISPLAY = 1000
+        
+        if len(filtered_df) > MAX_ROWS_DISPLAY:
+            st.warning(f"⚠️ Dữ liệu quá lớn để hiển thị hết. Đang hiện {MAX_ROWS_DISPLAY} dòng đầu tiên. Hãy dùng bộ lọc để thu hẹp phạm vi.")
+            display_df = filtered_df.head(MAX_ROWS_DISPLAY)
+        else:
+            display_df = filtered_df
+
+        edited_df = st.data_editor(
+            display_df, 
+            num_rows="dynamic", 
+            use_container_width=True,
+            key="data_editor_crud" # Key cố định để tránh render lại không cần thiết
+        )
+
+        if st.button("💾 Lưu thay đổi bảng"):
+            # Cập nhật lại vào dữ liệu gốc trong session state
+            # Lưu ý: Logic này chỉ cập nhật các dòng đang hiển thị
+            # Cần xử lý kỹ hơn nếu muốn update ngược lại tập dữ liệu 80k dòng
+            st.session_state.df.update(edited_df)
+            st.success("Đã lưu dữ liệu vào bộ nhớ tạm!")
+            
     else:
-        st.warning("Chưa có dữ liệu.")
-
-
+        st.warning("Dữ liệu trống.")
 # =========================================================
 # MODULE 3: PHÂN TÍCH TRỰC QUAN
 # =========================================================

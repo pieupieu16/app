@@ -180,98 +180,84 @@ if selected == "Trang chủ":
         st.info("Vui lòng Import dữ liệu ở tab 'Quản lý Dữ liệu' để xem thống kê.")
 
     # 1. LOAD MODEL
-   
-
-
-
- 
-    
     def plot_shap_waterfall(model, input_data, model_columns=None):
         """
         Hàm vẽ biểu đồ Waterfall cho cả Pipeline và Standalone Model.
-        Đã tắt check_additivity để tránh lỗi crash khi dữ liệu lệch nhẹ.
+        Khắc phục lỗi: 'numpy.ndarray' object has no attribute 'items'
         """
         try:
-            # --- BƯỚC 1: XÁC ĐỊNH LOẠI MÔ HÌNH VÀ CHUẨN BỊ DỮ LIỆU ---
+            # --- BƯỚC 1: CHUẨN BÓ DỮ LIỆU ĐẦU VÀO ---
+            # Đảm bảo input_data có thể xử lý được (nếu là Series thì chuyển thành DataFrame)
+            if isinstance(input_data, pd.Series):
+                input_data = input_data.to_frame().T
             
+            # --- BƯỚC 2: XÁC ĐỊNH LOẠI MÔ HÌNH ---
             is_pipeline = hasattr(model, 'named_steps')
+            
+            # Mặc định feature_names lấy từ cột của input (nếu có)
+            feature_names = list(input_data.columns) if hasattr(input_data, 'columns') else [f"Feature {i}" for i in range(input_data.shape[1])]
             data_transformed = input_data
-            feature_names = input_data.columns.tolist()
 
             if is_pipeline:
-                # === TRƯỜNG HỢP 1: LÀ PIPELINE ===
-                # Lấy model cuối cùng
+                # === PIPELINE: BÓC TÁCH VÀ TRANSFORM ===
                 regressor = model.steps[-1][1] 
-                
-                # Lấy preprocessor (giả sử là bước đầu tiên)
                 preprocessor = model.steps[0][1]
                 
-                # QUAN TRỌNG: Phải transform dữ liệu y hệt cách model học
-                try:
-                    # Nếu input_data là DataFrame 1 dòng, transform sẽ trả về numpy array
+                try:   
+                    # Transform dữ liệu qua preprocessor
                     data_transformed = preprocessor.transform(input_data)
                     
-                    # Cố gắng lấy tên cột sau khi biến đổi (quan trọng cho OneHotEncoder)
+                    # Cố gắng lấy tên cột từ preprocessor
                     if hasattr(preprocessor, 'get_feature_names_out'):
-                        feature_names = preprocessor.get_feature_names_out()
+                        # QUAN TRỌNG: Chuyển về list thuần túy (tolist) để tránh lỗi numpy
+                        feature_names = preprocessor.get_feature_names_out().tolist()
                     else:
-                        # Nếu không lấy được tên, tạo tên giả định theo số lượng cột
-                        feature_names = [f"Feature {i}" for i in range(data_transformed.shape[1])]
+                        # Nếu không lấy được tên, tạo tên mới khớp với số lượng cột sau khi transform
+                        feature_names = [f"Feat {i}" for i in range(data_transformed.shape[1])]
                 except Exception as e:
-                    # Nếu transform lỗi, in cảnh báo và dùng data gốc (có thể gây sai số)
-                    print(f"Warning - Transform data failed: {e}")
+                    print(f"Warning: Transform pipeline failed ({str(e)}). Using raw data.")
                     pass
 
             else:
-                # === TRƯỜNG HỢP 2: LÀ MÔ HÌNH LẺ ===
+                # === STANDALONE MODEL ===
                 regressor = model
                 
-                # Lọc cột thừa (như Năm, Tháng) nếu model có thuộc tính feature_names_in_
+                # Lọc cột thừa nếu cần
                 if hasattr(regressor, 'feature_names_in_'):
                     required_cols = regressor.feature_names_in_
-                    
-                    # Chỉ giữ lại cột cần thiết và sắp xếp đúng thứ tự
-                    valid_cols = [c for c in required_cols if c in input_data.columns]
-                    
-                    if len(valid_cols) == len(required_cols):
-                        data_transformed = input_data[required_cols]
-                        feature_names = required_cols
-                    else:
-                        # Nếu thiếu cột quan trọng, không thể lọc, giữ nguyên để báo lỗi sau
-                        pass
+                    # Kiểm tra input_data có phải là DataFrame không để lọc
+                    if hasattr(input_data, 'columns'):
+                        valid_cols = [c for c in required_cols if c in input_data.columns]
+                        if len(valid_cols) == len(required_cols):
+                            data_transformed = input_data[required_cols]
+                            feature_names = list(required_cols) # Chuyển về list
 
-            # --- BƯỚC 2: TẠO EXPLAINER VÀ TÍNH SHAP VALUES ---
-            
-            # Sử dụng TreeExplainer cho các mô hình cây (RandomForest, XGBoost...)
+            # --- BƯỚC 3: TÍNH SHAP VALUES ---
             explainer = shap.TreeExplainer(regressor)
             
-            # --- FIX LỖI ADDITIVITY ---
-            # check_additivity=False: Bỏ qua kiểm tra tổng SHAP == Prediction
-            # Điều này giúp code chạy được ngay cả khi có sai số do làm tròn hoặc Preprocessing phức tạp
+            # check_additivity=False: Bỏ qua lỗi lệch số liệu nhỏ
             shap_values = explainer(data_transformed, check_additivity=False)
 
-            # Gán lại tên cột cho đối tượng SHAP để hiển thị trên biểu đồ
-            # Cần đảm bảo số lượng tên cột khớp với số lượng đặc trưng trong data_transformed
-            if len(feature_names) == data_transformed.shape[1]:
+            # --- BƯỚC 4: GÁN TÊN CỘT AN TOÀN ---
+            # Chỉ gán nếu số lượng tên khớp với số lượng cột dữ liệu
+            if len(feature_names) == shap_values.shape[1]:
                 shap_values.feature_names = feature_names
-
-            # --- BƯỚC 3: VẼ BIỂU ĐỒ ---
+            elif len(feature_names) > shap_values.shape[1]:
+                # Trường hợp tên nhiều hơn cột (thường do OneHotEncoder tạo ra ít cột hơn dự kiến khi thiếu category), cắt bớt
+                shap_values.feature_names = feature_names[:shap_values.shape[1]]
+            
+            # --- BƯỚC 5: VẼ BIỂU ĐỒ ---
             fig, ax = plt.subplots(figsize=(10, 6))
             
-            # Vẽ waterfall cho mẫu đầu tiên
-            shap.plots.waterfall(shap_values[0], max_display=15, show=False)
-            
-            # Tính toán giá trị để hiển thị tiêu đề
-            # Base value (giá trị trung bình của mô hình)
-            if hasattr(explainer, 'expected_value'):
-                base_val = explainer.expected_value
-                if isinstance(base_val, (np.ndarray, list)):
-                    base_val = base_val[0]
-            else:
-                base_val = 0
+            # Lấy giá trị base (expected_value) an toàn
+            base_val = explainer.expected_value
+            if isinstance(base_val, (np.ndarray, list)):
+                base_val = base_val[0]
                 
-            # Giá trị dự báo thực tế từ SHAP (có thể lệch nhẹ so với model.predict do check_additivity=False)
+            # Tính giá trị dự báo hiển thị
             current_pred = shap_values[0].values.sum() + base_val
+            
+            shap.plots.waterfall(shap_values[0], max_display=15, show=False)
             
             plt.title(f"Dự báo: {current_pred:,.0f} (Base: {base_val:,.0f})", fontsize=14)
             plt.tight_layout()
@@ -280,7 +266,7 @@ if selected == "Trang chủ":
 
         except Exception as e:
             import traceback
-            # In lỗi chi tiết ra console server để debug
+            # In traceback ra console để debug nếu cần
             print(traceback.format_exc())
             return f"Lỗi hiển thị SHAP: {str(e)}"
   

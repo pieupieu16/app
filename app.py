@@ -259,7 +259,7 @@ if selected == "Trang chủ":
             
             # --- BƯỚC 4: VẼ BIỂU ĐỒ ---
             # Tăng chiều rộng lên 16 (trước là 10 hoặc 14) để có thêm không gian ngang
-            fig, ax = plt.subplots(figsize=(25, 10))
+            fig, ax = plt.subplots(figsize=(35, 15))
             
             base_val = explainer.expected_value
             if isinstance(base_val, (np.ndarray, list)): base_val = base_val[0]
@@ -527,7 +527,7 @@ if selected == "Trang chủ":
                     <div style="background-color: #f0fff4; padding: 20px; border-radius: 10px; border: 2px solid #48bb78; text-align: center;">
                         <h3 style="color: #2f855a; margin:0;">GIÁ TRỊ ƯỚC TÍNH</h3>
                         <h1 style="color: #22543d; font-size: 50px; margin: 10px 0;">{predicted_price/1000:,.2f} Tỷ</h1>
-                        <p style="color: #718096;">~ {(predicted_price / (1000*dien_tich)):,.0f} VNĐ / m²</p>
+                        <p style="color: #718096;">~ {(predicted_price / (dien_tich)):,.0f} VNĐ / m²</p>
                     </div>
                     """, unsafe_allow_html=True)
                 

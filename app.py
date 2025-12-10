@@ -185,42 +185,46 @@ if selected == "Trang chủ":
 
     def clean_feature_names(names):
         """
-        Hàm rút gọn tên cột để hiển thị đẹp hơn trên biểu đồ.
-        Ví dụ: 'Huyện_Phường Khương Đình' -> 'P.Khương Đình'
+        Hàm rút gọn tên và tạo khoảng cách an toàn (Padding).
         """
         cleaned_names = []
         for name in names:
-            # Thay thế các từ khóa dài dòng
+            # 1. Rút gọn từ khóa
             new_name = str(name)
             new_name = new_name.replace("Huyện_Phường", "P.")
             new_name = new_name.replace("Quận_Quận", "Q.")
             new_name = new_name.replace("Tỉnh_Thành phố", "TP.")
             new_name = new_name.replace("Giấy tờ pháp lý", "Pháp lý")
+            new_name = new_name.replace("Unknown", "?") # Rút gọn Unknown
             
-            # Cắt bớt nếu vẫn quá dài (trên 25 ký tự)
-            if len(new_name) > 25:
-                new_name = new_name[:22] + "..."
+            # 2. Cắt bớt nếu vẫn quá dài (trên 20 ký tự)
+            if len(new_name) > 20:
+                new_name = new_name[:18] + ".."
+                
+            # 3. [QUAN TRỌNG] Thêm khoảng trắng vào cuối
+            # Mẹo này giúp đẩy chữ sang trái, tránh bị số liệu đè lên
+            new_name = new_name + "      "  # Thêm 6 khoảng trắng
                 
             cleaned_names.append(new_name)
         return cleaned_names
 
     def plot_shap_waterfall(model, input_data, model_columns=None):
         """
-        Phiên bản tối ưu hiển thị: Tự động rút gọn tên và mở rộng khung hình.
+        Phiên bản Fix lỗi đè chữ bằng cách tăng padding và kích thước biểu đồ.
         """
         try:
-            # --- BƯỚC 1: CHUẨN BỊ DỮ LIỆU ---
+            # --- BƯỚC 1: XỬ LÝ DỮ LIỆU ---
             if isinstance(input_data, pd.Series):
                 input_data = input_data.to_frame().T
             
             is_pipeline = hasattr(model, 'named_steps')
             
-            # Mặc định lấy tên cột từ input
+            # Mặc định lấy tên cột
             raw_feature_names = list(input_data.columns) if hasattr(input_data, 'columns') else [f"F{i}" for i in range(input_data.shape[1])]
             data_transformed = input_data
 
             if is_pipeline:
-                # === PIPELINE ===
+                # Pipeline: Transform và lấy feature names
                 regressor = model.steps[-1][1] 
                 preprocessor = model.steps[0][1]
                 try:
@@ -230,7 +234,7 @@ if selected == "Trang chủ":
                 except:
                     pass
             else:
-                # === STANDALONE MODEL ===
+                # Standalone Model
                 regressor = model
                 if hasattr(regressor, 'feature_names_in_') and hasattr(input_data, 'columns'):
                     required_cols = regressor.feature_names_in_
@@ -239,33 +243,33 @@ if selected == "Trang chủ":
                         data_transformed = input_data[required_cols]
                         raw_feature_names = list(required_cols)
 
-            # --- BƯỚC 2: RÚT GỌN TÊN CỘT (QUAN TRỌNG) ---
-            # Gọi hàm làm sạch tên để tránh bị đè chữ
+            # --- BƯỚC 2: LÀM SẠCH TÊN CỘT ---
+            # Gọi hàm clean đã thêm khoảng trắng đệm
             short_feature_names = clean_feature_names(raw_feature_names)
 
             # --- BƯỚC 3: TÍNH SHAP ---
             explainer = shap.TreeExplainer(regressor)
             shap_values = explainer(data_transformed, check_additivity=False)
 
-            # Gán tên đã rút gọn vào
+            # Gán tên cột (xử lý lệch số lượng nếu có)
             if len(short_feature_names) == shap_values.shape[1]:
                 shap_values.feature_names = short_feature_names
             elif len(short_feature_names) > shap_values.shape[1]:
                 shap_values.feature_names = short_feature_names[:shap_values.shape[1]]
             
-            # --- BƯỚC 4: VẼ BIỂU ĐỒ VỚI KÍCH THƯỚC LỚN ---
-            # Tăng figsize lên (14, 8) hoặc lớn hơn để kéo giãn chiều ngang
-            fig, ax = plt.subplots(figsize=(14, 8))
+            # --- BƯỚC 4: VẼ BIỂU ĐỒ ---
+            # Tăng chiều rộng lên 16 (trước là 10 hoặc 14) để có thêm không gian ngang
+            fig, ax = plt.subplots(figsize=(25, 10))
             
             base_val = explainer.expected_value
             if isinstance(base_val, (np.ndarray, list)): base_val = base_val[0]
             current_pred = shap_values[0].values.sum() + base_val
             
-            # max_display=12: Giảm số lượng dòng hiển thị để đỡ rối
-            shap.plots.waterfall(shap_values[0], max_display=12, show=False)
+            # max_display=14: Hiển thị vừa đủ
+            shap.plots.waterfall(shap_values[0], max_display=16, show=False)
             
-            # Tùy chỉnh font chữ nhỏ lại một chút nếu cần
-            plt.gcf().axes[0].tick_params(labelsize=11)
+            # Tùy chỉnh font chữ trục Y nhỏ lại một chút
+            plt.yticks(fontsize=11)
             
             plt.title(f"Dự báo: {current_pred:,.0f} (Base: {base_val:,.0f})", fontsize=16)
             plt.tight_layout()
@@ -276,7 +280,7 @@ if selected == "Trang chủ":
             import traceback
             print(traceback.format_exc())
             return f"Lỗi hiển thị: {str(e)}"
-  
+    
     @st.cache_resource
     def load_model_assets():
         try:
@@ -490,8 +494,8 @@ if selected == "Trang chủ":
         input_data['Rộng'] = chieu_rong
         input_data['Số tầng'] = so_tang
         input_data['Số phòng ngủ'] = so_phong
-        # input_data['Năm'] = nam_gd
-        # input_data['Tháng'] = thang_gd
+        input_data['Năm'] = nam_gd
+        input_data['Tháng'] = thang_gd
 
         # C. Điền dữ liệu One-Hot
         def set_one_hot(prefix, value):
@@ -522,8 +526,8 @@ if selected == "Trang chủ":
                     st.markdown(f"""
                     <div style="background-color: #f0fff4; padding: 20px; border-radius: 10px; border: 2px solid #48bb78; text-align: center;">
                         <h3 style="color: #2f855a; margin:0;">GIÁ TRỊ ƯỚC TÍNH</h3>
-                        <h1 style="color: #22543d; font-size: 50px; margin: 10px 0;">{predicted_price:,.2f} Tỷ</h1>
-                        <p style="color: #718096;">~ {(predicted_price * 1_000_000_000 / dien_tich):,.0f} VNĐ / m²</p>
+                        <h1 style="color: #22543d; font-size: 50px; margin: 10px 0;">{predicted_price/1000:,.2f} Tỷ</h1>
+                        <p style="color: #718096;">~ {(predicted_price / (1000*dien_tich)):,.0f} VNĐ / m²</p>
                     </div>
                     """, unsafe_allow_html=True)
                 

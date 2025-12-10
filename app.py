@@ -183,99 +183,99 @@ if selected == "Trang chủ":
 
 
 
-def clean_feature_names(names):
-    """
-    Hàm rút gọn tên cột để hiển thị đẹp hơn trên biểu đồ.
-    Ví dụ: 'Huyện_Phường Khương Đình' -> 'P.Khương Đình'
-    """
-    cleaned_names = []
-    for name in names:
-        # Thay thế các từ khóa dài dòng
-        new_name = str(name)
-        new_name = new_name.replace("Huyện_Phường", "P.")
-        new_name = new_name.replace("Quận_Quận", "Q.")
-        new_name = new_name.replace("Tỉnh_Thành phố", "TP.")
-        new_name = new_name.replace("Giấy tờ pháp lý", "Pháp lý")
-        
-        # Cắt bớt nếu vẫn quá dài (trên 25 ký tự)
-        if len(new_name) > 25:
-            new_name = new_name[:22] + "..."
+    def clean_feature_names(names):
+        """
+        Hàm rút gọn tên cột để hiển thị đẹp hơn trên biểu đồ.
+        Ví dụ: 'Huyện_Phường Khương Đình' -> 'P.Khương Đình'
+        """
+        cleaned_names = []
+        for name in names:
+            # Thay thế các từ khóa dài dòng
+            new_name = str(name)
+            new_name = new_name.replace("Huyện_Phường", "P.")
+            new_name = new_name.replace("Quận_Quận", "Q.")
+            new_name = new_name.replace("Tỉnh_Thành phố", "TP.")
+            new_name = new_name.replace("Giấy tờ pháp lý", "Pháp lý")
             
-        cleaned_names.append(new_name)
-    return cleaned_names
+            # Cắt bớt nếu vẫn quá dài (trên 25 ký tự)
+            if len(new_name) > 25:
+                new_name = new_name[:22] + "..."
+                
+            cleaned_names.append(new_name)
+        return cleaned_names
 
-def plot_shap_waterfall(model, input_data, model_columns=None):
-    """
-    Phiên bản tối ưu hiển thị: Tự động rút gọn tên và mở rộng khung hình.
-    """
-    try:
-        # --- BƯỚC 1: CHUẨN BỊ DỮ LIỆU ---
-        if isinstance(input_data, pd.Series):
-            input_data = input_data.to_frame().T
-        
-        is_pipeline = hasattr(model, 'named_steps')
-        
-        # Mặc định lấy tên cột từ input
-        raw_feature_names = list(input_data.columns) if hasattr(input_data, 'columns') else [f"F{i}" for i in range(input_data.shape[1])]
-        data_transformed = input_data
+    def plot_shap_waterfall(model, input_data, model_columns=None):
+        """
+        Phiên bản tối ưu hiển thị: Tự động rút gọn tên và mở rộng khung hình.
+        """
+        try:
+            # --- BƯỚC 1: CHUẨN BỊ DỮ LIỆU ---
+            if isinstance(input_data, pd.Series):
+                input_data = input_data.to_frame().T
+            
+            is_pipeline = hasattr(model, 'named_steps')
+            
+            # Mặc định lấy tên cột từ input
+            raw_feature_names = list(input_data.columns) if hasattr(input_data, 'columns') else [f"F{i}" for i in range(input_data.shape[1])]
+            data_transformed = input_data
 
-        if is_pipeline:
-            # === PIPELINE ===
-            regressor = model.steps[-1][1] 
-            preprocessor = model.steps[0][1]
-            try:
-                data_transformed = preprocessor.transform(input_data)
-                if hasattr(preprocessor, 'get_feature_names_out'):
-                    raw_feature_names = preprocessor.get_feature_names_out().tolist()
-            except:
-                pass
-        else:
-            # === STANDALONE MODEL ===
-            regressor = model
-            if hasattr(regressor, 'feature_names_in_') and hasattr(input_data, 'columns'):
-                 required_cols = regressor.feature_names_in_
-                 valid_cols = [c for c in required_cols if c in input_data.columns]
-                 if len(valid_cols) == len(required_cols):
-                     data_transformed = input_data[required_cols]
-                     raw_feature_names = list(required_cols)
+            if is_pipeline:
+                # === PIPELINE ===
+                regressor = model.steps[-1][1] 
+                preprocessor = model.steps[0][1]
+                try:
+                    data_transformed = preprocessor.transform(input_data)
+                    if hasattr(preprocessor, 'get_feature_names_out'):
+                        raw_feature_names = preprocessor.get_feature_names_out().tolist()
+                except:
+                    pass
+            else:
+                # === STANDALONE MODEL ===
+                regressor = model
+                if hasattr(regressor, 'feature_names_in_') and hasattr(input_data, 'columns'):
+                    required_cols = regressor.feature_names_in_
+                    valid_cols = [c for c in required_cols if c in input_data.columns]
+                    if len(valid_cols) == len(required_cols):
+                        data_transformed = input_data[required_cols]
+                        raw_feature_names = list(required_cols)
 
-        # --- BƯỚC 2: RÚT GỌN TÊN CỘT (QUAN TRỌNG) ---
-        # Gọi hàm làm sạch tên để tránh bị đè chữ
-        short_feature_names = clean_feature_names(raw_feature_names)
+            # --- BƯỚC 2: RÚT GỌN TÊN CỘT (QUAN TRỌNG) ---
+            # Gọi hàm làm sạch tên để tránh bị đè chữ
+            short_feature_names = clean_feature_names(raw_feature_names)
 
-        # --- BƯỚC 3: TÍNH SHAP ---
-        explainer = shap.TreeExplainer(regressor)
-        shap_values = explainer(data_transformed, check_additivity=False)
+            # --- BƯỚC 3: TÍNH SHAP ---
+            explainer = shap.TreeExplainer(regressor)
+            shap_values = explainer(data_transformed, check_additivity=False)
 
-        # Gán tên đã rút gọn vào
-        if len(short_feature_names) == shap_values.shape[1]:
-            shap_values.feature_names = short_feature_names
-        elif len(short_feature_names) > shap_values.shape[1]:
-             shap_values.feature_names = short_feature_names[:shap_values.shape[1]]
-        
-        # --- BƯỚC 4: VẼ BIỂU ĐỒ VỚI KÍCH THƯỚC LỚN ---
-        # Tăng figsize lên (14, 8) hoặc lớn hơn để kéo giãn chiều ngang
-        fig, ax = plt.subplots(figsize=(14, 8))
-        
-        base_val = explainer.expected_value
-        if isinstance(base_val, (np.ndarray, list)): base_val = base_val[0]
-        current_pred = shap_values[0].values.sum() + base_val
-        
-        # max_display=12: Giảm số lượng dòng hiển thị để đỡ rối
-        shap.plots.waterfall(shap_values[0], max_display=12, show=False)
-        
-        # Tùy chỉnh font chữ nhỏ lại một chút nếu cần
-        plt.gcf().axes[0].tick_params(labelsize=11)
-        
-        plt.title(f"Dự báo: {current_pred:,.0f} (Base: {base_val:,.0f})", fontsize=16)
-        plt.tight_layout()
-        
-        return fig
+            # Gán tên đã rút gọn vào
+            if len(short_feature_names) == shap_values.shape[1]:
+                shap_values.feature_names = short_feature_names
+            elif len(short_feature_names) > shap_values.shape[1]:
+                shap_values.feature_names = short_feature_names[:shap_values.shape[1]]
+            
+            # --- BƯỚC 4: VẼ BIỂU ĐỒ VỚI KÍCH THƯỚC LỚN ---
+            # Tăng figsize lên (14, 8) hoặc lớn hơn để kéo giãn chiều ngang
+            fig, ax = plt.subplots(figsize=(14, 8))
+            
+            base_val = explainer.expected_value
+            if isinstance(base_val, (np.ndarray, list)): base_val = base_val[0]
+            current_pred = shap_values[0].values.sum() + base_val
+            
+            # max_display=12: Giảm số lượng dòng hiển thị để đỡ rối
+            shap.plots.waterfall(shap_values[0], max_display=12, show=False)
+            
+            # Tùy chỉnh font chữ nhỏ lại một chút nếu cần
+            plt.gcf().axes[0].tick_params(labelsize=11)
+            
+            plt.title(f"Dự báo: {current_pred:,.0f} (Base: {base_val:,.0f})", fontsize=16)
+            plt.tight_layout()
+            
+            return fig
 
-    except Exception as e:
-        import traceback
-        print(traceback.format_exc())
-        return f"Lỗi hiển thị: {str(e)}"
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            return f"Lỗi hiển thị: {str(e)}"
   
     @st.cache_resource
     def load_model_assets():

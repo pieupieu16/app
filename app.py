@@ -14,17 +14,7 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 import re
 import base64
-import sys
-import os
-
-# Lấy đường dẫn thư mục gốc và thêm vào hệ thống
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-# Sau đó mới thực hiện import
-try:
-    from modules.constants import DISTRICTS, WARDS_MAP
-except ImportError:
-    st.error("Không tìm thấy thư mục modules hoặc constants.py!")
+from constants import DISTRICTS, WARDS_MAP
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Hệ thống Quản lý & Định giá BĐS Hà Nội",

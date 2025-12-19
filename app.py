@@ -14,7 +14,7 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 import re
 import base64
-from constants import DISTRICTS, WARDS_MAP
+from modules.constants import DISTRICTS, WARDS_MAP
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Hệ thống Quản lý & Định giá BĐS Hà Nội",

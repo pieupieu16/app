@@ -9,3 +9,4 @@ matplotlib
 shap
 xlsxwriter
 openpyxl
+modules.constants

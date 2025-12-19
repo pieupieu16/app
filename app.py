@@ -5,7 +5,7 @@ import joblib
 import streamlit.components.v1 as components
 from streamlit_option_menu import option_menu
 from datetime import datetime
-from utils import plot_shap_waterfall
+
 import io
 import preprocess
 import shap

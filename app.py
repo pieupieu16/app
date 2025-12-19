@@ -571,9 +571,6 @@ if selected == "Trang chủ":
                 st.error(f"Lỗi khi dự báo: {str(e)}")
                 st.dataframe(input_data) # Debug
 
-
-   
-
 ## =========================================================
 # MODULE 2: QUẢN LÝ DỮ LIỆU (ĐÃ TỐI ƯU HÓA)
 # =========================================================
@@ -805,10 +802,6 @@ elif selected == "Phân tích Trực quan":
 # MODULE 4:
 # =========================================================
 elif selected == "Bản đồ quy hoạch Hà Nội":
-    
-    
-
-
     # 1. Hàm chuyển ảnh sang Base64
     def get_base64_of_bin_file(bin_file):
         with open(bin_file, 'rb') as f:

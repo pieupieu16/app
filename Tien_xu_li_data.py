@@ -71,4 +71,4 @@ print(df_final.head())
 
 
 # Bạn có thể lưu lại file đã xử lý nếu cần
-df_final.to_csv('processed_housing_data.csv', index=False)
+df_final.to_parquet('processed_housing_data.parquet', index=False)

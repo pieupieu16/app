@@ -2,53 +2,40 @@ import pandas as pd
 import joblib
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error
 import os
 
-# --- BƯỚC 1: TẢI DỮ LIỆU (Step 1: Load Data) ---
-# Chúng ta sử dụng file parquet để đạt hiệu suất cao nhất
+# --- 1. TẢI DỮ LIỆU (Load Data) ---
+# Sử dụng file parquet để tốc độ nhanh hơn
 data_path = 'processed_housing_data.parquet'
 
-if not os.path.exists(data_path):
-    print(f"Lỗi: Không tìm thấy file {data_path}!")
-    # Nếu chưa có parquet, bạn có thể đổi thành .csv tạm thời
-    # df = pd.read_csv('VN_housing_dataset.csv')
-else:
-    df = pd.read_parquet(data_path)
-    print("Đã tải dữ liệu thành công! (Data loaded successfully!)")
+df = pd.read_parquet(data_path)
 
-# --- BƯỚC 2: CHUẨN BỊ DỮ LIỆU (Step 2: Data Preparation) ---
-# Tách biến mục tiêu (Target) và các đặc trưng (Features)
-# Giả sử cột giá nhà của bạn tên là 'Giá nhà'
-TARGET = 'Giá nhà'
-X = df.drop(columns=[TARGET])
-y = df[TARGET]
+# --- 2. CHUẨN BỊ DỮ LIỆU (Prepare Data) ---
+# Loại bỏ các dòng bị thiếu giá trị (Handling missing values)
+df = df.dropna()
 
-# Lưu danh sách các cột để app Streamlit biết thứ tự input
+# Tách Features (X) và Target (y)
+# Giả sử tên cột giá là 'Giá nhà'
+X = df.drop(columns=['Giá nhà'])
+y = df['Giá nhà']
+
+# [QUAN TRỌNG] Lưu danh sách các cột ngay tại đây
 model_columns = list(X.columns)
 joblib.dump(model_columns, 'model_columns.pkl')
+print("✅ Đã lưu file: model_columns.pkl")
 
-# Chia dữ liệu để kiểm tra (Train/Test Split)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Chia tập dữ liệu
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
-# --- BƯỚC 3: HUẤN LUYỆN MÔ HÌNH (Step 3: Model Training) ---
-print("Đang huấn luyện mô hình Random Forest... (Training model...)")
-model = RandomForestRegressor(
-    n_estimators=100,      # Số lượng cây trong rừng
-    max_depth=15,          # Độ sâu tối đa của cây để tránh quá khớp (Overfitting)
-    random_state=42,
-    n_jobs=-1              # Sử dụng toàn bộ nhân CPU để chạy nhanh hơn
-)
-
+# --- 3. HUẤN LUYỆN (Training) ---
+print("🚀 Đang huấn luyện mô hình Random Forest...")
+model = RandomForestRegressor(n_estimators=50, random_state=42, n_jobs=-1, max_depth=12)
 model.fit(X_train, y_train)
 
-# --- BƯỚC 4: ĐÁNH GIÁ (Step 4: Evaluation) ---
-predictions = model.predict(X_test)
-error = mean_absolute_error(y_test, predictions)
-print(f"Độ lỗi trung bình (MAE): {error:.2f} Tỷ")
+# --- 4. LƯU MÔ HÌNH (Save Model) ---
+# Lưu file pkl chính cho bộ não AI
+joblib.dump(model, 'house_price_model.pkl', compress=3)
+print("✅ Đã lưu file: house_price_model.pkl")
 
-# --- BƯỚC 5: LƯU MÔ HÌNH (Step 5: Save Model) ---
-# QUAN TRỌNG: Tắt OneDrive trước khi chạy dòng này
-model_filename = 'house_price_model.pkl'
-joblib.dump(model, model_filename, compress=3) # Nén mức 3 để file nhỏ hơn
-print(f"Đã lưu mô hình mới tại: {model_filename}")
+print("\n--- HOÀN THÀNH (FINISHED) ---")
+print("Vui lòng kiểm tra thư mục, bạn sẽ thấy 2 file mới xuất hiện.")

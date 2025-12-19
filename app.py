@@ -14,7 +14,7 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 import re
 import base64
-from modules.constants import DISTRICTS, WARDS_MAP
+from modules.constants import districts, wards_map
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Hệ thống Quản lý & Định giá BĐS Hà Nội",
@@ -324,10 +324,10 @@ if selected == "Trang chủ":
     c4, c5 = st.columns(2)
     with c4:
         # Tương tác: Chọn Quận -> Cập nhật danh sách Phường
-        selected_district = st.selectbox("Quận / Huyện", DISTRICTS)
+        selected_district = st.selectbox("Quận / Huyện", districts)
         
         # Lấy danh sách phường tương ứng
-        available_wards = WARDS_MAP.get(selected_district, [])
+        available_wards = wards_map.get(selected_district, [])
         
         # Checkbox Logic: Nếu check -> Enable Dropdown
         is_ward_specific = st.checkbox("Chọn Phường/Xã chi tiết?", value=False)

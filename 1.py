@@ -29,7 +29,7 @@ X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_
 
 # --- 3. HUẤN LUYỆN (Training) ---
 print("🚀 Đang huấn luyện mô hình Random Forest...")
-model = RandomForestRegressor(n_estimators=50, random_state=42, n_jobs=-1, max_depth=12)
+model = RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1, max_depth=12)
 model.fit(X_train, y_train)
 
 # --- 4. LƯU MÔ HÌNH (Save Model) ---

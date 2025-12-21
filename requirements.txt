@@ -1,8 +1,11 @@
 streamlit
 pandas
-scikit-learn
+plotly
 joblib
-matplotlib
+streamlit-option-menu
+scikit-learn
 shap
-pyarrow
+matplotlib
 numpy
+pyarrow
+xlsxwriter

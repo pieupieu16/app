@@ -224,7 +224,7 @@ if selected == "Trang chủ":
             return None, None
 
     model, model_columns = load_model_assets()
-  
+
 
     if model is None:
         st.stop()
@@ -350,7 +350,7 @@ if selected == "Trang chủ":
                         
                         with exp_c1:
                             # Hiển thị biểu đồ
-                            st.pyplot(fig_explanation)
+                            st.image(fig_explanation)
                         
                         with exp_c2:
                             st.info("""

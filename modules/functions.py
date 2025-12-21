@@ -39,3 +39,20 @@ def get_cheapest_district(df, col_price, col_area):
         result = temp_df.groupby('Quận')['price_per_m2'].mean().idxmin()
         return result
     return "N/A"
+
+
+def get_data_summary(df):
+    if df.empty:
+        return "Không có dữ liệu."
+    
+    # Tính toán các thông số chính (Key Metrics)
+    avg_price = df['Giá nhà'].mean()
+    top_districts = df.groupby('Quận')['Giá nhà'].mean().nlargest(3).to_dict()
+    
+    summary = f"""
+    Tóm tắt dữ liệu thực tế trên biểu đồ:
+    - Giá trung bình toàn thành phố: {avg_price:.2f} Tỷ.
+    - 3 Quận có giá trung bình cao nhất: {top_districts}.
+    - Tổng số bản ghi (Total records): {len(df)} căn nhà.
+    """
+    return summary

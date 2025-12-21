@@ -6,6 +6,7 @@ streamlit-option-menu
 scikit-learn
 shap
 matplotlib
-numpy
+numpys
 pyarrow
 xlsxwriter
+google-genai

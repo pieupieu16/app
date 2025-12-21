@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from modules.functions import plot_shap_waterfall
+from modules.functions import plot_shap_waterfall,get_data_summary
 import joblib
 import streamlit.components.v1 as components
 from streamlit_option_menu import option_menu
@@ -15,7 +15,16 @@ import numpy as np
 from sklearn.pipeline import Pipeline
 import re
 import base64
-from modules.constants import districts, wards_map
+from modules.constants import districts, wards_map,SYSTEM_INSTRUCTION
+# Nhớ import thêm ở đầu file
+from google import genai
+# Kiểm tra xem tên biến 'GEMINI_API_KEY' có tồn tại trong secrets không
+if "GEMINI_API_KEY" in st.secrets:
+    client = genai.Client(api_key=st.secrets["GEMINI_API_KEY"])
+else:
+    st.error("Missing API Key! Vui lòng cấu hình GEMINI_API_KEY trong secrets.toml")
+
+
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Hệ thống Quản lý & Định giá BĐS Hà Nội",
@@ -542,15 +551,28 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
             
     else:
         st.warning("Dữ liệu trống.")
+
+
 # =========================================================
 # MODULE 3: PHÂN TÍCH TRỰC QUAN
 # =========================================================
 elif selected == "Phân tích Trực quan":
+    st.markdown("""
+    <style>
+    .chat-container {
+        border: 1px solid #e6e6e6;
+        border-radius: 10px;
+        padding: 15px;
+        background-color: #ffffff;
+    }
+    </style>
+    """, unsafe_allow_html=True)
     st.title(" Phân tích Giá trị BĐS")
-
+    col_dash, col_chat = st.columns([2.5, 1])
     
 
-    tab1, tab2, tab3,tab4 = st.tabs([" Vị trí & Giá", " Đặc điểm & Giá", "Phân phối giá nhà","Phân tích outline theo khu vực"])
+    with col_dash:
+        tab1, tab2, tab3, tab4 = st.tabs([" Vị trí & Giá", " Đặc điểm & Giá", "Phân phối giá nhà", "Phân tích outlier"])
 
     with tab1:
         st.subheader("Giá trung bình theo Quận")
@@ -591,6 +613,54 @@ elif selected == "Phân tích Trực quan":
                                                 vizElement.parentNode.insertBefore(scriptElement, vizElement);                </script>
         """
         components.html(tableau_code, height=850, scrolling=True)
+    # --- PHẦN KHUNG CHAT (CHATBOT SECTION) ---
+    with col_chat:
+        st.subheader("🤖 AI Insights")
+        
+        # 1. Tạo container với chiều cao cố định để kích hoạt thanh cuộn riêng
+        # Tham số height=600 sẽ tạo thanh cuộn nếu nội dung vượt quá
+        chat_placeholder = st.container(height=400, border=True)
+
+        # 2. Hiển thị lịch sử chat trong container này
+        if "messages" not in st.session_state:
+            st.session_state.messages = []
+
+        with chat_placeholder:
+            for message in st.session_state.messages:
+                with st.chat_message(message["role"]):
+                    st.markdown(message["content"])
+
+        # 3. Khu vực nhập liệu (Input) nằm ngoài container cuộn để luôn hiển thị ở dưới cùng
+        if prompt := st.chat_input("Hỏi tôi về biểu đồ..."):
+            # 1. Lưu câu hỏi vào lịch sử (Chat history)
+            st.session_state.messages.append({"role": "user", "content": prompt})
+            with chat_placeholder.chat_message("user"):
+                st.markdown(prompt)
+
+            # 2. Gọi API bằng Client (Thư viện google-genai)
+            with chat_placeholder.chat_message("assistant"):
+                with st.spinner("Đang phân tích..."):
+                    try:
+                        summary = get_data_summary(st.session_state.df)
+    
+                        # Kết hợp Instruction + Dữ liệu + Câu hỏi
+                        full_prompt = f"{SYSTEM_INSTRUCTION}\n\n{summary}\n\nNgười dùng hỏi: {prompt}"
+                        # GỌI TRỰC TIẾP QUA CLIENT
+                        response = client.models.generate_content(
+                            model='gemini-2.5-flash', # Hoặc gemini-2.0-flash-lite
+                            config={
+                                'system_instruction': SYSTEM_INSTRUCTION,
+                                'temperature': 0.7
+                            },
+                            contents=full_prompt
+                        )
+                        
+                        ai_response = response.text
+                        st.markdown(ai_response)
+                        st.session_state.messages.append({"role": "assistant", "content": ai_response})
+                        
+                    except Exception as e:
+                        st.error(f"Lỗi gọi AI: {e}")
 # =========================================================
 # MODULE 4:
 # =========================================================

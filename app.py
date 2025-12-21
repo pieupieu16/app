@@ -19,7 +19,7 @@ from modules.constants import districts, wards_map
 # --- 1. CẤU HÌNH TRANG ---
 st.set_page_config(
     page_title="Hệ thống Quản lý & Định giá BĐS Hà Nội",
-    page_icon="🏢",
+    page_icon="C:\\Users\\tranh\\OneDrive\\Desktop\\appblt\\Gemini_Generated_Image_zgk17rzgk17rzgk1.png",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -235,7 +235,7 @@ if selected == "Trang chủ":
     legal_types = sorted([c.replace('Giấy tờ pháp lý_', '') for c in model_columns if c.startswith('Giấy tờ pháp lý_')])
 
     # 3. GIAO DIỆN NHẬP LIỆU (KHÔNG DÙNG ST.FORM ĐỂ CÓ TƯƠNG TÁC TỨC THÌ)
-    st.subheader("📋 Thông tin Bất động sản")
+    st.subheader(" Thông tin Bất động sản")
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -250,7 +250,7 @@ if selected == "Trang chủ":
         thang_gd = st.number_input("Tháng", 1, 12, datetime.now().month)
 
     st.markdown("---")
-    st.subheader("📍 Vị trí & Đặc điểm")
+    st.subheader(" Vị trí & Đặc điểm")
     
     c4, c5 = st.columns(2)
     with c4:
@@ -275,7 +275,7 @@ if selected == "Trang chủ":
 
     # Nút Dự báo (Nằm ngoài cùng để gom logic)
     st.markdown("###")
-    predict_btn = st.button("💰 DỰ BÁO GIÁ NHÀ", type="primary", use_container_width=True)
+    predict_btn = st.button(" DỰ BÁO GIÁ NHÀ", type="primary", use_container_width=True)
 
     # 4. XỬ LÝ DỰ BÁO
     if predict_btn:
@@ -389,7 +389,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
         
         # Nút bấm xử lý
         if uploaded_raw_file is not None:
-            if st.button("🚀 Bắt đầu Xử lý & Cập nhật", type="primary"):
+            if st.button(" Bắt đầu Xử lý & Cập nhật", type="primary"):
                 try:
                     with st.spinner("Đang chạy script tiền xử lý (cleaning, mapping, encoding)..."):
                         # A. Đọc file upload
@@ -432,7 +432,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
         csv_data = df.to_csv(index=False).encode('utf-8-sig')
         with col1:
             st.download_button(
-                label="📥 Tải xuống CSV (Nhanh)",
+                label=" Tải xuống CSV (Nhanh)",
                 data=csv_data,
                 file_name='du_lieu_nha_dat.csv',
                 mime='text/csv'
@@ -446,7 +446,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
             
             # Kiểm tra kích thước dữ liệu
             if len(df) > 5000:
-                st.warning("Dữ liệu lớn (>5000 dòng). File Excel sẽ không được căn chỉnh cột tự động để đảm bảo tốc độ.")
+                st.warning("Dữ liệu lớn (>5000 dòng). File Excel sẽ không được căn chỉnh cột tự động.")
                 is_large_file = True
             else:
                 is_large_file = False
@@ -472,7 +472,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
                         mime='application/vnd.ms-excel'
                     )
     else:
-        st.warning("⚠️ Chưa có dữ liệu nào để xuất.")
+        st.warning(" Chưa có dữ liệu nào để xuất.")
 
     # --- 3. TÌM KIẾM & LỌC (ĐÃ TỐI ƯU HIỂN THỊ) ---
     st.subheader("3. Tìm kiếm & Lọc nhanh")
@@ -481,7 +481,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
         col_search, col_filter = st.columns(2)
         
         with col_search:
-            search_term = st.text_input("🔍 Tìm kiếm (Quận/Loại nhà):")
+            search_term = st.text_input(" Tìm kiếm (Quận/Loại nhà):")
         
         with col_filter:
             # Xử lý an toàn nếu cột giá không tồn tại hoặc toàn NaN
@@ -515,7 +515,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
             
             filtered_df = filtered_df[mask]
 
-        st.info(f"📊 Tìm thấy **{len(filtered_df)}** bản ghi phù hợp.")
+        st.info(f" Tìm thấy **{len(filtered_df)}** bản ghi phù hợp.")
 
         # --- HIỂN THỊ DỮ LIỆU THÔNG MINH ---
         # Chỉ cho phép edit trên 1000 dòng đầu để tránh treo trình duyệt
@@ -533,7 +533,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
             key="data_editor_crud" # Key cố định để tránh render lại không cần thiết
         )
 
-        if st.button("💾 Lưu thay đổi bảng"):
+        if st.button(" Lưu thay đổi bảng"):
             # Cập nhật lại vào dữ liệu gốc trong session state
             # Lưu ý: Logic này chỉ cập nhật các dòng đang hiển thị
             # Cần xử lý kỹ hơn nếu muốn update ngược lại tập dữ liệu 80k dòng
@@ -608,12 +608,40 @@ elif selected == "Bản đồ quy hoạch Hà Nội":
     target_url = 'https://quyhoach.hanoi.vn'
 
     try:
-
         img_base64 = get_base64_of_bin_file(img_file)
+        
+        # 1. Thêm CSS để xóa bỏ khoảng cách (padding) của container Streamlit
+        st.markdown("""
+            <style>
+                /* Loại bỏ khoảng trống ở 2 bên và phía trên của trang */
+                .main .block-container {
+                    padding-top: 1rem;
+                    padding-right: 0rem;
+                    padding-left: 0rem;
+                    padding-bottom: 0rem;
+                }
+                /* Đảm bảo ảnh chiếm 100% chiều rộng màn hình */
+                .full-width-img {
+                    width: 100%;
+                    height: auto;
+                    display: block;
+                    transition: transform 0.3s;
+                }
+                .full-width-img:hover {
+                    filter: brightness(90%); /* Hiệu ứng tối đi một chút khi di chuột vào */
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
+        # 2. Hiển thị ảnh kèm link
         st.markdown(
             f"""
-            <a href="{target_url}" target="_blank">
-                <img src="data:image/jpeg;base64,{img_base64}" width="100%" style="border-radius: 5px;">(Nhấn vào ảnh để xem chi tiết)</p>
+            <div style="width: 100%; text-align: center;">
+                <a href="{target_url}" target="_blank">
+                    <img src="data:image/png;base64,{img_base64}" class="full-width-img">
+                </a>
+                <p style="margin-top: 10px; color: #666;">(Nhấn vào ảnh để xem chi tiết bản đồ quy hoạch)</p>
+            </div>
             """,
             unsafe_allow_html=True
         )

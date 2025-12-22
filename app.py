@@ -6,7 +6,6 @@ import joblib
 import streamlit.components.v1 as components
 from streamlit_option_menu import option_menu
 from datetime import datetime
-
 import io
 import preprocess
 import shap
@@ -383,7 +382,7 @@ elif selected == "Quản lý Dữ liệu (CRUD)":
     st.subheader("1. Cập nhật dữ liệu mới")
     
     with st.expander("Thêm dữ liệu thô & Chạy Tiền xử lý"):
-        st.info("Upload file dữ liệu thô (Raw CSV/Excel). Hệ thống sẽ tự động làm sạch và gộp vào dữ liệu chính.")
+        st.info("Upload file theo form (Ngày,Địa chỉ,Quận,Huyện,Loại hình nhà ở,Giấy tờ pháp lý,Số tầng,Số phòng ngủ,Diện tích,Dài,Rộng,Giá/m2) ")
         
         # Widget Upload file
         uploaded_raw_file = st.file_uploader("Chọn file dữ liệu thô", type=['csv', 'xlsx'])

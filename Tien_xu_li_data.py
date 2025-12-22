@@ -61,17 +61,16 @@ df = df.drop(columns=['Địa chỉ'])
 df=df[df['Giá nhà']>2000]
 df['Giá nhà'] = df['Giá nhà'] / 1000
 df = df.sample(n=20000, random_state=42)
-# One-Hot Encoding cho các biến phân loại
-df_final = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
+
 
 
 
 
 # 7. KIỂM TRA KẾT QUẢ
-print("Kích thước dữ liệu sau xử lý:", df_final.shape)
+print("Kích thước dữ liệu sau xử lý:", df.shape)
 print("Các cột dữ liệu (5 dòng đầu):")
-print(df_final.head())
+print(df.head())
 
 
 # Bạn có thể lưu lại file đã xử lý nếu cần
-df_final.to_parquet('processed_housing_data.parquet', index=False)
+df.to_parquet('processed_housing_data.parquet', index=False)

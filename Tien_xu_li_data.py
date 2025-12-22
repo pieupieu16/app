@@ -34,8 +34,8 @@ df['Giá nhà'] = df['Diện tích'] * df['Giá/m2']
 # Quan trọng: Xóa các dòng không tính được giá nhà (vì không thể train model nếu không có đáp án)
 df = df.dropna(subset=['Giá nhà'])
 
-# Xóa cột 'Giá/m2' để tránh data leakage (rò rỉ dữ liệu) khi train
-df = df.drop(columns=['Giá/m2'])
+# # Xóa cột 'Giá/m2' để tránh data leakage (rò rỉ dữ liệu) khi train
+# df = df.drop(columns=['Giá/m2'])
 
 # 4. FEATURE ENGINEERING (TẠO ĐẶC TRƯNG MỚI)
 # Xử lý ngày tháng
@@ -60,7 +60,7 @@ df['Dài']=df['Diện tích']/df['Rộng']
 df = df.drop(columns=['Địa chỉ'])
 df=df[df['Giá nhà']>2000]
 df['Giá nhà'] = df['Giá nhà'] / 1000
-df = df.sample(n=20000, random_state=42)
+# df = df.sample(n=20000, random_state=42)
 
 
 

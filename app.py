@@ -46,25 +46,6 @@ st.markdown("""
 def load_data(file_path='processed_housing_data.parquet'):
     try:
         df = pd.read_parquet(file_path)
-        
-        # 1. Xử lý tên cột
-        df.columns = df.columns.str.replace(r'\s+', ' ', regex=True).str.strip()
-        df = df.loc[:, ~df.columns.duplicated()]
-
-        # 2. Hàm tái tạo cột phân loại từ One-Hot Encoding
-        def reverse_ohe(row, prefix):
-            cols = [c for c in df.columns if c.startswith(prefix)]
-            for c in cols:
-                if row[c] == 1:
-                    return c.replace(prefix, '')
-            return 'Khác'
-
-        # 3. Tạo cột phân loại để hiển thị (Visual)
-        if 'Quận' not in df.columns:
-            df['Quận'] = df.apply(lambda x: reverse_ohe(x, 'Quận_'), axis=1)
-        
-        if 'Loại nhà' not in df.columns:
-            df['Loại nhà'] = df.apply(lambda x: reverse_ohe(x, 'Loại hình nhà ở_'), axis=1)
 
         return df
     except Exception as e:
@@ -122,57 +103,24 @@ if selected == "Trang chủ":
         avg_price = df[COL_PRICE].mean()
         max_price = df[COL_PRICE].max()
         
-        # Định nghĩa các tiền tố của cột Quận/Huyện (dựa trên dữ liệu bạn gửi)
-        DISTRICT_PREFIXES_LIST = ['Quận_Huyện', 'Quận_Quận', 'Quận_Thị xã']
-        # Định nghĩa các tiền tố cần loại bỏ để lấy tên Quận/Huyện
-        PREFIXES_TO_REMOVE = ['Quận_Huyện ', 'Quận_Quận ', 'Quận_Thị xã ', 'Quận_'] 
-
-        # Khởi tạo giá trị mặc định
         cheapest_district = "N/A"
 
         if COL_AREA in df.columns and COL_PRICE in df.columns:
             
             # 1. TẠO CỘT DISTRICT GỐC (DE-ONE-HOT ENCODING)
             try:
-                # Lấy danh sách tất cả các cột Quận/Huyện One-Hot
-                district_cols = [col for col in df.columns if any(col.startswith(p) for p in DISTRICT_PREFIXES_LIST)]
-                
-                if not district_cols:
-                    cheapest_district = "Lỗi: Không tìm thấy cột Quận/Huyện (One-Hot)"
-                else:
-                    # Hàm để tái tạo lại tên Quận/Huyện
-                    def get_district_name(row, cols, prefixes_to_remove):
-                        # Tìm tên cột có giá trị lớn nhất (giá trị 1)
-                        selected_col = row[cols].idxmax()
-                        
-                        # Kiểm tra để đảm bảo đó là 1, nếu không là 'Unknown'
-                        if row[selected_col] == 1:
-                            name = selected_col
-                            for prefix in prefixes_to_remove:
-                                if name.startswith(prefix):
-                                    name = name[len(prefix):]
-                                    break
-                            return name
-                        return 'Unknown' 
-
-                    # Áp dụng hàm để tạo cột tên Quận/Huyện mới tạm thời
-                    df['District_Name'] = df.apply(lambda row: get_district_name(row, district_cols, PREFIXES_TO_REMOVE), axis=1)
-
-                    # 2. LỌC VÀ TÍNH TOÁN
-                    
-                    # Lọc dữ liệu hợp lệ: Diện tích > 0, Giá nhà > 0, và tên Quận/Huyện đã được xác định
                     valid_area = df[
                         (df[COL_AREA] > 0) & 
                         (df[COL_PRICE] > 0) &
-                        (df['District_Name'] != 'Unknown')
+                        (df['Quận'] != 'Unknown')
                     ].copy()
                     
                     # Kiểm tra: Đảm bảo có đủ Quận/Huyện để so sánh
-                    if valid_area['District_Name'].nunique() > 1:
+                    if valid_area['Quận'].nunique() > 1:
                         valid_area['Price_per_m2'] = valid_area[COL_PRICE] / valid_area[COL_AREA]
                         
                         # Tính giá trung bình trên mỗi mét vuông theo Quận/Huyện
-                        grouped_prices = valid_area.groupby('District_Name')['Price_per_m2'].mean()
+                        grouped_prices = valid_area.groupby('Quận')['Price_per_m2'].mean()
                         
                         if not grouped_prices.empty:
                             cheapest_district = grouped_prices.idxmin()
@@ -614,7 +562,7 @@ elif selected == "Phân tích Trực quan":
         components.html(tableau_code, height=850, scrolling=True)
     # --- PHẦN KHUNG CHAT (CHATBOT SECTION) ---
     with col_chat:
-        st.subheader("🤖 AI Insights")
+        st.subheader("Trợ lí phân tích")
         
         # 1. Tạo container với chiều cao cố định để kích hoạt thanh cuộn riêng
         # Tham số height=600 sẽ tạo thanh cuộn nếu nội dung vượt quá

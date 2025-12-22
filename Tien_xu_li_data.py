@@ -54,7 +54,7 @@ for col in numeric_cols:
 categorical_cols = ['Quận', 'Huyện', 'Loại hình nhà ở', 'Giấy tờ pháp lý']
 for col in categorical_cols:
     df[col] = df[col].fillna('Unknown')
-
+df['Dài']=df['Diện tích']/df['Rộng']
 # 6. MÃ HÓA (ENCODING) & CHUẨN BỊ DỮ LIỆU CUỐI CÙNG
 # Xóa cột Địa chỉ vì quá chi tiết, khó dùng cho model đơn giản
 df = df.drop(columns=['Địa chỉ'])
@@ -63,6 +63,9 @@ df['Giá nhà'] = df['Giá nhà'] / 1000
 df = df.sample(n=20000, random_state=42)
 # One-Hot Encoding cho các biến phân loại
 df_final = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
+
+
+
 
 # 7. KIỂM TRA KẾT QUẢ
 print("Kích thước dữ liệu sau xử lý:", df_final.shape)

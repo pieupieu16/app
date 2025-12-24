@@ -56,18 +56,17 @@ def clean_data(df):
     categorical_cols = ['Quận', 'Huyện', 'Loại hình nhà ở', 'Giấy tờ pháp lý']
     for col in categorical_cols:
         df[col] = df[col].fillna('Unknown')
-
+    df['Dài']=df['Diện tích']/df['Rộng']
     # 6. MÃ HÓA (ENCODING) & CHUẨN BỊ DỮ LIỆU CUỐI CÙNG
     # Xóa cột Địa chỉ vì quá chi tiết, khó dùng cho model đơn giản
-    df_model = df.drop(columns=['Địa chỉ'])
-    
-    df_model['Giá nhà'] = df['Giá nhà'] / 1000
+    df = df.drop(columns=['Địa chỉ'])
+    df['Giá nhà'] = df['Giá nhà'] / 1000
     # One-Hot Encoding cho các biến phân loại
-    df_final = pd.get_dummies(df_model, columns=categorical_cols, drop_first=True)
+    # df_final = pd.get_dummies(df_model, columns=categorical_cols, drop_first=True)
 
 
 
-    return df_final
+    return df
 
 def run_pipeline(new_raw_df, current_df=None, mode='append'):
     """

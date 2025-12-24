@@ -588,7 +588,7 @@ elif selected == "Phân tích Trực quan":
             with chat_placeholder.chat_message("assistant"):
                 with st.spinner("Đang phân tích..."):
                     try:
-                        summary = get_data_summary(st.session_state.df)
+                        summary = ""
     
                         # Kết hợp Instruction + Dữ liệu + Câu hỏi
                         full_prompt = f"{SYSTEM_INSTRUCTION}\n\n{summary}\n\nNgười dùng hỏi: {prompt}"
